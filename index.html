@@ -144,6 +144,10 @@ td.name { white-space: normal; min-width: 170px; }
         <button class="btn" id="go" type="button">Buscar</button>
         <button class="btn ghost" id="demo" type="button">Datos de ejemplo</button>
       </div>
+      <div class="btns" style="margin-top:8px">
+        <button class="btn ghost" id="enrich" type="button" disabled>Cargar detalle de cuerpos</button>
+      </div>
+      <p class="note" id="enrichNote">Pide la ficha completa de cada sistema a Spansh (anillos, señales, mercados). Tarda unos segundos por cada decena de sistemas.</p>
     </section>
     <section>
       <h2>Qué te interesa (pesos)</h2>
@@ -296,7 +300,8 @@ function normBody(b, sys) {
 }
 
 function normStation(s, sys) {
-  const market = (s.market || s.commodities || []).map((m) => ({
+  const rawMarket = Array.isArray(s.market) ? s.market : first(s.market && s.market.commodities, s.commodities, []);
+  const market = (rawMarket || []).map((m) => ({
     name: String(first(m.commodity, m.name, "") || ""),
     supply: +first(m.supply, 0) || 0,
     buy: +first(m.buy_price, m.buyPrice, 0) || 0,
@@ -331,7 +336,7 @@ function normSystem(s) {
 function score(sys) { return WEIGHTS.reduce((a, w) => a + (sys.c[w.k] || 0) * (weights[w.k] || 0), 0); }
 
 /* ---------- estado ---------- */
-const state = { systems: [], total: 0, ref: "", demo: false, fav: new Set(store.get("fav", [])), lastRequest: null, lastKeys: null, error: "" };
+const state = { systems: [], total: 0, ref: "", demo: false, fav: new Set(store.get("fav", [])), lastRequest: null, lastKeys: null, error: "", sample: {} };
 
 /* ---------- búsqueda ---------- */
 function defaultApi() {
@@ -358,6 +363,12 @@ async function search() {
       const data = await r.json();
       const results = data.results || [];
       state.lastKeys = results[0] ? Object.keys(results[0]) : Object.keys(data);
+      if (page === 0) {
+        const withB = results.find((r) => r.bodies && r.bodies.length);
+        state.sample.search_body = withB ? withB.bodies[0] : null;
+        const withS = results.find((r) => r.stations && r.stations.length);
+        state.sample.search_station = withS ? Object.assign({}, withS.stations[0], { market: withS.stations[0].market ? "(presente)" : undefined }) : null;
+      }
       total = first(data.count, data.total, total);
       all.push(...results);
       if (results.length < 100 || all.length >= total) break;
@@ -371,6 +382,43 @@ async function search() {
       : e.message;
   }
   $("#go").disabled = false;
+  renderAll();
+}
+
+async function enrich() {
+  const base = ($("#api").value.trim() || defaultApi()).replace(/\/+$/, "");
+  const todo = state.systems.filter((s) => s.id64 && !s.full).sort((a, b) => (b.isFree - a.isFree) || a.dist - b.dist);
+  if (!todo.length) { $("#enrichNote").textContent = "Todos los sistemas ya tienen detalle cargado."; return; }
+  $("#enrich").disabled = true; $("#go").disabled = true;
+  let done = 0, failed = 0, stop = false, firstErr = "";
+  const worker = async () => {
+    while (todo.length && !stop) {
+      const old = todo.shift();
+      try {
+        const r = await fetch(`${base}/system/${old.id64}`);
+        if (r.status === 429) { stop = true; firstErr = "Spansh pide ir más despacio (429). Espera un minuto y vuelve a pulsar."; break; }
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const data = await r.json();
+        const rec = first(data.record, data.system, data);
+        if (!state.sample.record_keys) {
+          state.sample.record_keys = Object.keys(rec);
+          state.sample.record_body = (rec.bodies || [])[0] || null;
+          const st = (rec.stations || []).find((x) => x.market);
+          state.sample.record_station = st ? Object.assign({}, st, { market: JSON.stringify(st.market).slice(0, 400) }) : null;
+        }
+        const full = normSystem(rec);
+        Object.assign(full, { dist: old.dist, pop: old.pop, colonised: old.colonised, being: old.being, permit: old.permit, isFree: old.isFree, full: true });
+        full.id64 = old.id64; full.name = old.name;
+        state.systems[state.systems.indexOf(old)] = full;
+      } catch (e) { failed++; if (!firstErr) firstErr = e.message; old.full = true; }
+      done++;
+      $("#enrichNote").textContent = `Cargando detalle… ${done} de ${done + todo.length}${failed ? ` (${failed} fallos)` : ""}`;
+      if (done % 8 === 0) { renderSystems(); renderBodies(); }
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  $("#enrich").disabled = false; $("#go").disabled = false;
+  $("#enrichNote").textContent = stop ? firstErr : `Detalle cargado en ${done} sistemas${failed ? `, ${failed} con error (${firstErr})` : ""}.`;
   renderAll();
 }
 
@@ -408,7 +456,7 @@ function renderStatus() {
   } else if (!state.error) h += `<span>Introduce tu sistema de referencia y pulsa Buscar, o prueba con los datos de ejemplo.</span>`;
   if (state.error) h += `<span class="err">${esc(state.error)}</span>`;
   if (state.lastRequest) {
-    h += `<details class="dbg"><summary>Diagnóstico de la última petición</summary><pre>${esc(JSON.stringify({ peticion: state.lastRequest, campos_del_primer_resultado: state.lastKeys }, null, 2))}</pre></details>`;
+    h += `<details class="dbg"><summary>Diagnóstico de la última petición</summary><pre>${esc(JSON.stringify({ peticion: state.lastRequest, campos_del_primer_resultado: state.lastKeys, muestra: state.sample }, null, 2).slice(0, 6000))}</pre></details>`;
   }
   $("#status").innerHTML = h;
 }
@@ -503,7 +551,7 @@ function renderLogi() {
   }).join("");
 }
 
-function renderAll() { renderStatus(); renderSystems(); renderBodies(); renderLogi(); }
+function renderAll() { $("#enrich").disabled = !state.systems.length || state.demo; renderStatus(); renderSystems(); renderBodies(); renderLogi(); }
 
 /* ---------- CSV ---------- */
 function exportCsv() {
@@ -524,6 +572,7 @@ buildWeights();
 $("#go").addEventListener("click", search);
 $("#ref").addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
 $("#demo").addEventListener("click", loadDemo);
+$("#enrich").addEventListener("click", enrich);
 $("#csv").addEventListener("click", exportCsv);
 $("#logiGo").addEventListener("click", renderLogi);
 ["fFree", "fPermit", "fFav", "fMinBodies", "fSort"].forEach((id) => $("#" + id).addEventListener("input", renderSystems));
