@@ -110,6 +110,16 @@ td.name { white-space: normal; min-width: 170px; }
 .bar { display: inline-block; height: 6px; background: var(--accent); border-radius: 3px; vertical-align: middle; margin-left: 6px; opacity: .8; }
 .star { background: none; border: 0; cursor: pointer; font-size: 17px; color: var(--muted); padding: 0 4px; }
 .star.on { color: var(--accent); }
+.typebox { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.typehead { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; }
+.typehead .field { margin: 0; min-width: 110px; }
+.typehead strong { font-family: var(--font-display); font-size: 16px; text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; padding-bottom: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; }
+.chip { background: var(--panel-2); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; font-size: 12px; cursor: pointer; color: var(--fg); }
+.chip span { font-family: var(--font-data); color: var(--muted); margin-left: 4px; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip[aria-pressed=true] span { color: var(--accent-ink); }
 .empty { padding: 28px 16px; text-align: center; color: var(--muted); }
 .note { color: var(--muted); font-size: 12px; margin: 0; }
 .cols { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -180,6 +190,17 @@ td.name { white-space: normal; min-width: 170px; }
           <select id="fSort"><option value="score">Puntuación</option><option value="dist">Distancia</option><option value="bodies">Nº de cuerpos</option></select></div>
         <button class="btn ghost" id="csv" type="button">Exportar CSV</button>
       </div>
+      <div class="typebox">
+        <div class="typehead">
+          <strong>Tipos de cuerpo</strong>
+          <div class="field"><label for="tMode">El sistema debe tener</label>
+            <select id="tMode"><option value="all">Todos los marcados</option><option value="any">Alguno de los marcados</option></select></div>
+          <div class="field"><label for="tMin">Mínimo por tipo</label><input id="tMin" type="number" min="1" value="1"></div>
+          <button class="btn ghost" id="tClear" type="button">Quitar selección</button>
+        </div>
+        <div class="chips" id="typeChips"></div>
+        <p class="note">Pulsa los tipos que te interesen. El número de cada tipo son los sistemas que lo tienen entre los que pasan los demás filtros.</p>
+      </div>
       <div class="tablewrap" id="sysTable"></div>
     </section>
 
@@ -196,6 +217,7 @@ td.name { white-space: normal; min-width: 170px; }
             <option value="landable">Aterrizable</option>
             <option value="rocky">Cuerpo rocoso</option>
           </select></div>
+        <div class="field"><label for="bType">Tipo exacto</label><select id="bType"><option value="">Todos los tipos</option></select></div>
         <div class="field"><label for="bRing">Anillo</label>
           <select id="bRing"><option value="">Cualquiera</option><option value="any">Con anillos</option><option value="metallic">Metálico</option><option value="metal rich">Rico en metal</option><option value="rocky">Rocoso</option><option value="icy">Helado</option></select></div>
         <div class="field"><label for="bBio">Señales bio ≥</label><input id="bBio" type="number" min="0" value="0"></div>
@@ -327,6 +349,8 @@ function normSystem(s) {
   sys.stations = (s.stations || []).map((st) => normStation(st, sys));
   sys.isFree = sys.pop === 0 && !sys.colonised && !sys.being;
   sys.nBodies = sys.bodies.length || +sys.bodyCountDeclared || 0;
+  sys.types = {};
+  sys.bodies.forEach((b) => { if (b.sub) sys.types[b.sub] = (sys.types[b.sub] || 0) + 1; });
   const planets = sys.bodies.filter((b) => !b.isStar);
   sys.c = {
     elw: planets.filter((b) => b.elw).length, ww: planets.filter((b) => b.ww).length, aw: planets.filter((b) => b.aw).length,
@@ -340,7 +364,7 @@ function normSystem(s) {
 function score(sys) { return WEIGHTS.reduce((a, w) => a + (sys.c[w.k] || 0) * (weights[w.k] || 0), 0); }
 
 /* ---------- estado ---------- */
-const state = { systems: [], total: 0, ref: "", demo: false, fav: new Set(store.get("fav", [])), lastRequest: null, lastKeys: null, error: "", sample: {} };
+const state = { systems: [], total: 0, ref: "", demo: false, fav: new Set(store.get("fav", [])), lastRequest: null, lastKeys: null, error: "", sample: {}, typeSel: new Set() };
 
 /* ---------- búsqueda ---------- */
 function defaultApi() {
@@ -478,15 +502,32 @@ function sysLinks(s) {
   return `${sp}<a href="https://inara.cz/elite/starsystem/?search=${encodeURIComponent(s.name)}" target="_blank" rel="noopener">Inara</a>`;
 }
 
-function filteredSystems() {
+function filteredSystems(skipType) {
   const free = $("#fFree").checked, permit = $("#fPermit").checked, fav = $("#fFav").checked, minB = +$("#fMinBodies").value || 0, minR = +$("#fRocky").value || 0, sort = $("#fSort").value;
   let list = state.systems.filter((s) => (!free || s.isFree) && (!permit || !s.permit) && (!fav || state.fav.has(String(s.id64 ?? s.name))) && s.nBodies >= minB && s.c.rocky >= minR);
+  if (!skipType && state.typeSel.size) {
+    const sel = [...state.typeSel], mode = $("#tMode").value, tmin = Math.max(1, +$("#tMin").value || 1);
+    list = list.filter((s) => mode === "any" ? sel.some((t) => (s.types[t] || 0) >= tmin) : sel.every((t) => (s.types[t] || 0) >= tmin));
+  }
   list = list.map((s) => Object.assign(s, { score: score(s) }));
   list.sort((a, b) => sort === "dist" ? a.dist - b.dist : sort === "bodies" ? b.nBodies - a.nBodies : b.score - a.score || a.dist - b.dist);
   return list;
 }
 
+function renderTypes() {
+  const m = new Map();
+  filteredSystems(true).forEach((s) => Object.keys(s.types).forEach((t) => {
+    const e = m.get(t) || { sys: 0 }; e.sys++; m.set(t, e);
+  }));
+  state.typeSel.forEach((t) => { if (!m.has(t)) m.set(t, { sys: 0 }); });
+  const items = [...m.entries()].sort((a, b) => b[1].sys - a[1].sys || a[0].localeCompare(b[0]));
+  $("#typeChips").innerHTML = items.length
+    ? items.map(([t, e]) => `<button type="button" class="chip" aria-pressed="${state.typeSel.has(t)}" data-type="${esc(t)}">${esc(t)}<span>${e.sys}</span></button>`).join("")
+    : '<span class="sub">Sin datos todavía.</span>';
+}
+
 function renderSystems() {
+  renderTypes();
   const list = filteredSystems();
   if (!list.length) { $("#sysTable").innerHTML = `<div class="empty">${state.systems.length ? "Ningún sistema cumple los filtros." : "Aún no hay datos."}</div>`; return; }
   const max = Math.max(1, ...list.map((s) => s.score));
@@ -503,13 +544,19 @@ function renderSystems() {
 }
 
 function renderBodies() {
+  const typeSel = $("#bType"), curType = typeSel.value, allTypes = new Set();
+  state.systems.forEach((s) => s.bodies.forEach((b) => { if (b.sub) allTypes.add(b.sub); }));
+  typeSel.innerHTML = '<option value="">Todos los tipos</option>' + [...allTypes].sort().map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
+  typeSel.value = allTypes.has(curType) ? curType : "";
+  const type = typeSel.value;
   const kind = $("#bKind").value, ring = $("#bRing").value, minBio = +$("#bBio").value || 0, minGeo = +$("#bGeo").value || 0;
   const arr = $("#bArr").value === "" ? Infinity : +$("#bArr").value, free = $("#bFree").checked, sort = $("#bSort").value;
   const rows = [];
   state.systems.forEach((s) => {
     if (free && !s.isFree) return;
     s.bodies.forEach((b) => {
-      if (b.isStar) return;
+      if (b.isStar && !type) return;
+      if (type && b.sub !== type) return;
       if (kind === "elw" && !b.elw) return; if (kind === "ww" && !b.ww) return; if (kind === "aw" && !b.aw) return;
       if (kind === "terra" && !b.terraformable) return; if (kind === "gg" && !b.gg) return; if (kind === "landable" && !b.landable) return; if (kind === "rocky" && !b.rocky) return;
       if (ring === "any" && !b.rings.length) return;
@@ -580,7 +627,14 @@ $("#enrich").addEventListener("click", enrich);
 $("#csv").addEventListener("click", exportCsv);
 $("#logiGo").addEventListener("click", renderLogi);
 ["fFree", "fPermit", "fFav", "fMinBodies", "fRocky", "fSort"].forEach((id) => $("#" + id).addEventListener("input", renderSystems));
-["bKind", "bRing", "bBio", "bGeo", "bArr", "bFree", "bSort"].forEach((id) => $("#" + id).addEventListener("input", renderBodies));
+["bKind", "bType", "bRing", "bBio", "bGeo", "bArr", "bFree", "bSort"].forEach((id) => $("#" + id).addEventListener("input", renderBodies));
+$("#typeChips").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-type]"); if (!b) return;
+  const t = b.dataset.type; state.typeSel.has(t) ? state.typeSel.delete(t) : state.typeSel.add(t);
+  renderSystems();
+});
+$("#tClear").addEventListener("click", () => { state.typeSel.clear(); renderSystems(); });
+["tMode", "tMin"].forEach((id) => $("#" + id).addEventListener("input", renderSystems));
 $("#sysTable").addEventListener("click", (e) => {
   const b = e.target.closest("[data-fav]"); if (!b) return;
   const k = b.dataset.fav; state.fav.has(k) ? state.fav.delete(k) : state.fav.add(k);
