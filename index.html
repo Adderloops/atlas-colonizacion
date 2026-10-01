@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas de Colonización</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: barra lateral de búsqueda y pesos + área de resultados con pestañas (Sistemas / Cuerpos / Logística) */
+:root {
+  --bg: #0d1217;
+  --panel: #141b22;
+  --panel-2: #1a232c;
+  --line: #26323d;
+  --fg: #e4e9ee;
+  --muted: #8b9aa8;
+  --accent: #f0a23a;
+  --accent-ink: #1a1203;
+  --good: #4fc6a5;
+  --warn: #e8c24a;
+  --bad: #ef7a6c;
+  --font-display: "Rajdhani", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #eef1f4; --panel: #ffffff; --panel-2: #f3f5f8; --line: #d6dde4;
+    --fg: #15202a; --muted: #5c6b79; --accent: #b86a00; --accent-ink: #ffffff;
+    --good: #0f7f64; --warn: #8c6a00; --bad: #b4372a; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #eef1f4; --panel: #ffffff; --panel-2: #f3f5f8; --line: #d6dde4;
+  --fg: #15202a; --muted: #5c6b79; --accent: #b86a00; --accent-ink: #ffffff;
+  --good: #0f7f64; --warn: #8c6a00; --bad: #b4372a; color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-body); padding-inline: 16px; padding-block: 16px 40px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; letter-spacing: .02em; text-wrap: balance; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; max-width: 1500px; margin: 0 auto 16px; }
+.top h1 { font-size: 30px; font-weight: 700; text-transform: uppercase; }
+.top h1 span { color: var(--accent); }
+.top p { margin: 0; color: var(--muted); font-size: 13px; }
+
+.shell { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; max-width: 1500px; margin: 0 auto; align-items: start; }
+@media (max-width: 880px) { .shell { grid-template-columns: minmax(0, 1fr); } }
+
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
+@media (max-width: 880px) { .side { position: static; } }
+.side h2 { font-size: 15px; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.field label { font-size: 12px; color: var(--muted); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 7px 9px; min-width: 0;
+}
+textarea { font-family: var(--font-data); font-size: 13px; resize: vertical; }
+.btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 4px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-family: var(--font-display); font-size: 16px; letter-spacing: .04em; text-transform: uppercase; }
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .5; cursor: progress; }
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-size: 14px; padding: 7px 12px; }
+.btn.ghost:hover { border-color: var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.weights { display: grid; gap: 8px; }
+.w { display: grid; grid-template-columns: 1fr 34px; gap: 2px 8px; align-items: center; font-size: 13px; }
+.w input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 0; }
+.w output { text-align: right; font-family: var(--font-data); color: var(--accent); }
+
+.main { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.status { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: 13px; }
+.status .pill { font-family: var(--font-data); font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.status .pill.demo { color: var(--warn); border-color: var(--warn); }
+.status .err { color: var(--bad); flex-basis: 100%; }
+details.dbg { flex-basis: 100%; color: var(--muted); }
+details.dbg pre { white-space: pre-wrap; word-break: break-word; font-family: var(--font-data); font-size: 12px; background: var(--panel-2); padding: 8px; border-radius: 4px; max-height: 240px; overflow: auto; }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tab { background: none; border: 0; border-bottom: 3px solid transparent; padding: 8px 16px; cursor: pointer; font-family: var(--font-display); font-size: 18px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.tab[aria-selected=true] { color: var(--fg); border-bottom-color: var(--accent); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+.filters .field { margin: 0; min-width: 110px; }
+.filters .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; padding-bottom: 7px; }
+
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .05em; font-size: 13px; color: var(--muted); font-weight: 600; background: var(--panel-2); position: sticky; top: 0; }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+td.name { white-space: normal; min-width: 170px; }
+.sub { color: var(--muted); font-size: 12px; }
+.tag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--line); margin-right: 4px; font-family: var(--font-data); }
+.tag.elw { color: var(--good); border-color: var(--good); }
+.tag.ww { color: #6cb4f0; border-color: #6cb4f0; }
+.tag.aw { color: var(--warn); border-color: var(--warn); }
+.tag.bad { color: var(--bad); border-color: var(--bad); }
+.score { font-family: var(--font-data); font-weight: 500; color: var(--accent); }
+.bar { display: inline-block; height: 6px; background: var(--accent); border-radius: 3px; vertical-align: middle; margin-left: 6px; opacity: .8; }
+.star { background: none; border: 0; cursor: pointer; font-size: 17px; color: var(--muted); padding: 0 4px; }
+.star.on { color: var(--accent); }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+.note { color: var(--muted); font-size: 12px; margin: 0; }
+.cols { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 880px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.commodity { margin-bottom: 14px; }
+.commodity h3 { font-size: 18px; margin-bottom: 6px; }
+.ok { color: var(--good); } .low { color: var(--warn); }
+.theme { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+@media (prefers-reduced-motion: no-preference) { .btn, .tab { transition: filter .15s, color .15s; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Atlas de <span>Colonización</span></h1>
+  <p>Búsqueda personal de sistemas candidatos, cuerpos y suministros con datos de Spansh.
+    <button class="theme" id="themeBtn" type="button">Tema</button></p>
+</header>
+
+<div class="shell">
+  <aside class="side">
+    <section>
+      <h2>Búsqueda</h2>
+      <div class="field"><label for="ref">Sistema de referencia (tu ancla)</label>
+        <input id="ref" type="text" placeholder="p. ej. el sistema de tu estación colonizadora" autocomplete="off"></div>
+      <div class="row2">
+        <div class="field"><label for="radius">Radio (Ly)</label><input id="radius" type="number" min="1" max="60" value="15"></div>
+        <div class="field"><label for="pages">Páginas (x100)</label><input id="pages" type="number" min="1" max="10" value="3"></div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="go" type="button">Buscar</button>
+        <button class="btn ghost" id="demo" type="button">Datos de ejemplo</button>
+      </div>
+    </section>
+    <section>
+      <h2>Qué te interesa (pesos)</h2>
+      <div class="weights" id="weights"></div>
+      <p class="note">La puntuación de cada sistema es la suma de recuentos por peso. Ajusta a tu estilo de colonia.</p>
+    </section>
+    <section>
+      <h2>Conexión</h2>
+      <div class="field"><label for="api">URL base de la API</label><input id="api" type="text"></div>
+      <p class="note">Por defecto va directo a Spansh. Si el navegador lo bloquea (CORS), arranca <code>python server.py</code> y abre http://localhost:8765.</p>
+    </section>
+  </aside>
+
+  <main class="main">
+    <div class="status" id="status"><span>Introduce tu sistema de referencia y pulsa Buscar, o prueba con los datos de ejemplo.</span></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-systems" aria-selected="true" data-tab="systems">Sistemas</button>
+      <button class="tab" role="tab" id="t-bodies" aria-selected="false" data-tab="bodies">Cuerpos y recursos</button>
+      <button class="tab" role="tab" id="t-logi" aria-selected="false" data-tab="logi">Logística</button>
+    </div>
+
+    <section id="p-systems" role="tabpanel">
+      <div class="filters">
+        <label class="chk"><input type="checkbox" id="fFree" checked> Solo sin colonizar</label>
+        <label class="chk"><input type="checkbox" id="fPermit" checked> Sin permiso</label>
+        <label class="chk"><input type="checkbox" id="fFav"> Solo favoritos</label>
+        <div class="field"><label for="fMinBodies">Cuerpos mín.</label><input id="fMinBodies" type="number" min="0" value="0"></div>
+        <div class="field"><label for="fSort">Ordenar por</label>
+          <select id="fSort"><option value="score">Puntuación</option><option value="dist">Distancia</option><option value="bodies">Nº de cuerpos</option></select></div>
+        <button class="btn ghost" id="csv" type="button">Exportar CSV</button>
+      </div>
+      <div class="tablewrap" id="sysTable"></div>
+    </section>
+
+    <section id="p-bodies" role="tabpanel" hidden>
+      <div class="filters">
+        <div class="field"><label for="bKind">Tipo de cuerpo</label>
+          <select id="bKind">
+            <option value="">Todos los planetas</option>
+            <option value="elw">Mundo de tipo terrestre</option>
+            <option value="ww">Mundo acuático</option>
+            <option value="aw">Mundo de amoníaco</option>
+            <option value="terra">Terraformable</option>
+            <option value="gg">Gigante gaseoso</option>
+            <option value="landable">Aterrizable</option>
+          </select></div>
+        <div class="field"><label for="bRing">Anillo</label>
+          <select id="bRing"><option value="">Cualquiera</option><option value="any">Con anillos</option><option value="metallic">Metálico</option><option value="metal rich">Rico en metal</option><option value="rocky">Rocoso</option><option value="icy">Helado</option></select></div>
+        <div class="field"><label for="bBio">Señales bio ≥</label><input id="bBio" type="number" min="0" value="0"></div>
+        <div class="field"><label for="bGeo">Señales geo ≥</label><input id="bGeo" type="number" min="0" value="0"></div>
+        <div class="field"><label for="bArr">Llegada máx. (Ls)</label><input id="bArr" type="number" min="0" placeholder="sin límite"></div>
+        <label class="chk"><input type="checkbox" id="bFree" checked> Solo sistemas sin colonizar</label>
+        <div class="field"><label for="bSort">Ordenar por</label>
+          <select id="bSort"><option value="dist">Distancia al ancla</option><option value="arr">Distancia a la llegada</option><option value="bio">Señales bio</option><option value="geo">Señales geo</option></select></div>
+      </div>
+      <div class="tablewrap" id="bodyTable"></div>
+    </section>
+
+    <section id="p-logi" role="tabpanel" hidden>
+      <div class="cols">
+        <div class="card">
+          <h3>Lista de materiales</h3>
+          <label class="sub" for="shop">Una mercancía por línea con su cantidad en toneladas</label>
+          <textarea id="shop" rows="9" spellcheck="false">Steel 3000
+Titanium 1500
+Aluminium 1200
+Polymers 800
+Copper 600</textarea>
+          <button class="btn" id="logiGo" type="button">Buscar proveedores</button>
+          <p class="note">Busca en los mercados de las estaciones incluidas en la búsqueda de sistemas. Las cantidades de ejemplo son tuyas para editar; ajústalas al proyecto que construyas.</p>
+        </div>
+        <div id="logiOut" class="card"><div class="empty">Carga una búsqueda y pulsa «Buscar proveedores».</div></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+/* ---------- utilidades ---------- */
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const num = (v, d = 0) => (Number.isFinite(+v) ? (+v).toLocaleString("es-ES", { maximumFractionDigits: d }) : "–");
+const first = (...vals) => vals.find((v) => v !== undefined && v !== null);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } },
+};
+
+/* ---------- pesos de puntuación ---------- */
+const WEIGHTS = [
+  { k: "elw", label: "Mundo de tipo terrestre", def: 10 },
+  { k: "ww", label: "Mundo acuático", def: 6 },
+  { k: "aw", label: "Mundo de amoníaco", def: 4 },
+  { k: "terra", label: "Terraformable", def: 3 },
+  { k: "landable", label: "Cuerpo aterrizable", def: 1 },
+  { k: "rings", label: "Anillo", def: 2 },
+  { k: "gg", label: "Gigante gaseoso", def: 1 },
+  { k: "bio", label: "Señal biológica", def: 2 },
+  { k: "geo", label: "Señal geológica", def: 1 },
+];
+let weights = Object.assign(Object.fromEntries(WEIGHTS.map((w) => [w.k, w.def])), store.get("weights", {}));
+
+function buildWeights() {
+  $("#weights").innerHTML = WEIGHTS.map((w) =>
+    `<div class="w"><label for="w-${w.k}">${esc(w.label)}</label><output id="o-${w.k}">${weights[w.k]}</output>` +
+    `<input type="range" id="w-${w.k}" min="0" max="10" step="1" value="${weights[w.k]}"></div>`).join("");
+  WEIGHTS.forEach((w) => $("#w-" + w.k).addEventListener("input", (e) => {
+    weights[w.k] = +e.target.value; $("#o-" + w.k).textContent = e.target.value;
+    store.set("weights", weights); renderAll();
+  }));
+}
+
+/* ---------- normalización de datos de Spansh (tolera variantes de nombres) ---------- */
+function normSignals(raw) {
+  const out = { bio: 0, geo: 0 };
+  if (!raw) return out;
+  const add = (name, n) => {
+    const k = String(name).toLowerCase();
+    if (k.includes("bio")) out.bio += +n || 0;
+    else if (k.includes("geo")) out.geo += +n || 0;
+  };
+  if (Array.isArray(raw)) raw.forEach((s) => add(first(s.name, s.type, ""), first(s.count, s.value, 0)));
+  else if (typeof raw === "object") {
+    const m = raw.signals && typeof raw.signals === "object" ? raw.signals : raw;
+    Object.entries(m).forEach(([k, v]) => { if (typeof v === "number") add(k, v); });
+  }
+  return out;
+}
+
+function normBody(b, sys) {
+  const sub = String(first(b.subtype, b.subType, b.sub_type, "") || "");
+  const type = String(first(b.type, "") || "");
+  const sig = normSignals(first(b.signals, b.signal_list));
+  const rings = (b.rings || []).map((r) => ({ name: r.name || "", type: String(first(r.type, r.ring_type, "") || "") }));
+  const low = sub.toLowerCase();
+  const terraState = String(first(b.terraforming_state, b.terraformingState, "") || "");
+  return {
+    sys, name: b.name || "?", type, sub,
+    isStar: type.toLowerCase() === "star",
+    arrival: first(b.distance_to_arrival, b.distanceToArrival, null),
+    landable: !!first(b.is_landable, b.isLandable, false),
+    gravity: first(b.gravity, null),
+    atmosphere: String(first(b.atmosphere, b.atmosphere_type, b.atmosphereType, "") || ""),
+    terraformable: /^terraformable/i.test(terraState) || /candidate/i.test(terraState),
+    rings, bio: sig.bio, geo: sig.geo,
+    elw: low.includes("earth-like"), ww: low.includes("water world"), aw: low.includes("ammonia world"),
+    gg: low.includes("gas giant"),
+  };
+}
+
+function normStation(s, sys) {
+  const market = (s.market || s.commodities || []).map((m) => ({
+    name: String(first(m.commodity, m.name, "") || ""),
+    supply: +first(m.supply, 0) || 0,
+    buy: +first(m.buy_price, m.buyPrice, 0) || 0,
+  })).filter((m) => m.name);
+  return { sys, name: s.name || "?", type: String(first(s.type, "") || ""), arrival: first(s.distance_to_arrival, s.distanceToArrival, null), market };
+}
+
+function normSystem(s) {
+  const sys = {
+    id64: s.id64, name: s.name || "?",
+    dist: +first(s.distance, s.distance_to_reference, 0) || 0,
+    pop: +first(s.population, 0) || 0,
+    colonised: !!first(s.is_colonised, s.colonised, false),
+    being: !!first(s.is_being_colonised, s.being_colonised, false),
+    permit: !!first(s.needs_permit, s.permit, false),
+    bodyCountDeclared: first(s.body_count, s.bodyCount, null),
+  };
+  sys.bodies = (s.bodies || []).map((b) => normBody(b, sys));
+  sys.stations = (s.stations || []).map((st) => normStation(st, sys));
+  sys.isFree = sys.pop === 0 && !sys.colonised && !sys.being;
+  sys.nBodies = sys.bodies.length || +sys.bodyCountDeclared || 0;
+  const planets = sys.bodies.filter((b) => !b.isStar);
+  sys.c = {
+    elw: planets.filter((b) => b.elw).length, ww: planets.filter((b) => b.ww).length, aw: planets.filter((b) => b.aw).length,
+    terra: planets.filter((b) => b.terraformable).length, landable: planets.filter((b) => b.landable).length,
+    gg: planets.filter((b) => b.gg).length, rings: sys.bodies.reduce((a, b) => a + b.rings.length, 0),
+    bio: sys.bodies.reduce((a, b) => a + b.bio, 0), geo: sys.bodies.reduce((a, b) => a + b.geo, 0),
+  };
+  return sys;
+}
+
+function score(sys) { return WEIGHTS.reduce((a, w) => a + (sys.c[w.k] || 0) * (weights[w.k] || 0), 0); }
+
+/* ---------- estado ---------- */
+const state = { systems: [], total: 0, ref: "", demo: false, fav: new Set(store.get("fav", [])), lastRequest: null, lastKeys: null, error: "" };
+
+/* ---------- búsqueda ---------- */
+function defaultApi() {
+  const local = /^https?:$/.test(location.protocol) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  return local ? "/api" : "https://spansh.co.uk/api";
+}
+
+async function search() {
+  const ref = $("#ref").value.trim();
+  if (!ref) { setError("Escribe el sistema de referencia."); return; }
+  const radius = Math.max(1, +$("#radius").value || 15);
+  const pages = Math.min(10, Math.max(1, +$("#pages").value || 3));
+  const base = ($("#api").value.trim() || defaultApi()).replace(/\/+$/, "");
+  store.set("cfg", { ref, radius, pages, base });
+  $("#go").disabled = true; state.error = "";
+  const all = []; let total = 0;
+  try {
+    for (let page = 0; page < pages; page++) {
+      setStatusText(`Consultando Spansh… página ${page + 1} de ${pages}`);
+      const body = { filters: { distance: { min: "0", max: String(radius) } }, sort: [{ distance: { direction: "asc" } }], size: 100, page, reference_system: ref };
+      state.lastRequest = body;
+      const r = await fetch(base + "/systems/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(`Spansh respondió ${r.status}${r.status === 429 ? " (demasiadas peticiones, espera un momento)" : ""}.`);
+      const data = await r.json();
+      const results = data.results || [];
+      state.lastKeys = results[0] ? Object.keys(results[0]) : Object.keys(data);
+      total = first(data.count, data.total, total);
+      all.push(...results);
+      if (results.length < 100 || all.length >= total) break;
+    }
+    if (!all.length) throw new Error("Spansh no devolvió sistemas. Revisa el nombre exacto del sistema de referencia.");
+    state.systems = all.map(normSystem).filter((s) => s.name.toLowerCase() !== ref.toLowerCase());
+    state.total = total; state.ref = ref; state.demo = false;
+  } catch (e) {
+    state.error = e instanceof TypeError
+      ? "El navegador no pudo conectar con Spansh (probablemente bloqueo CORS o sin red). Arranca «python server.py» y abre http://localhost:8765, o cambia la URL base."
+      : e.message;
+  }
+  $("#go").disabled = false;
+  renderAll();
+}
+
+function setError(msg) { state.error = msg; renderStatus(); }
+function setStatusText(t) { $("#status").innerHTML = `<span>${esc(t)}</span>`; }
+
+/* ---------- datos de ejemplo (inventados, solo para ver la interfaz) ---------- */
+function loadDemo() {
+  const B = (name, sub, o = {}) => Object.assign({ name, type: "Planet", subtype: sub, distance_to_arrival: 300, is_landable: false, rings: [], signals: [] }, o);
+  const raw = [
+    { id64: 1, name: "Ejemplo Alfa", distance: 6.2, population: 0, bodies: [B("Ejemplo Alfa 1", "Earth-like world", { distance_to_arrival: 820, signals: [{ name: "Biological", count: 4 }] }), B("Ejemplo Alfa 2", "High metal content world", { is_landable: true, gravity: 0.6, rings: [{ name: "A Ring", type: "Metallic" }], signals: [{ name: "Geological", count: 3 }] }), B("Ejemplo Alfa 3", "Class I gas giant", { distance_to_arrival: 1500 })] },
+    { id64: 2, name: "Ejemplo Beta", distance: 9.8, population: 0, bodies: [B("Ejemplo Beta 1", "Water world", { distance_to_arrival: 140, terraforming_state: "Terraformable" }), B("Ejemplo Beta 2", "Rocky body", { is_landable: true, gravity: 0.2, rings: [{ name: "A Ring", type: "Icy" }], signals: [{ name: "Biological", count: 2 }, { name: "Geological", count: 1 }] }), B("Ejemplo Beta 3", "Icy body", { is_landable: true, distance_to_arrival: 2100 })] },
+    { id64: 3, name: "Ejemplo Gamma", distance: 12.4, population: 0, needs_permit: true, bodies: [B("Ejemplo Gamma 1", "Ammonia world", { distance_to_arrival: 4300 }), B("Ejemplo Gamma 2", "Rocky body", { is_landable: true, signals: [{ name: "Geological", count: 6 }] })] },
+    { id64: 4, name: "Ejemplo Delta", distance: 4.1, population: 0, is_being_colonised: true, bodies: [B("Ejemplo Delta 1", "Earth-like world", { signals: [{ name: "Biological", count: 7 }] })] },
+    { id64: 5, name: "Ejemplo Estación", distance: 3.3, population: 12000000, is_colonised: true, bodies: [B("Ejemplo Estación 1", "Rocky body", { is_landable: true })],
+      stations: [{ name: "Puerto Ejemplo", type: "Coriolis Starport", distance_to_arrival: 540, market: [{ commodity: "Steel", supply: 4200, buy_price: 3600 }, { commodity: "Titanium", supply: 900, buy_price: 920 }, { commodity: "Aluminium", supply: 2500, buy_price: 410 }] }] },
+    { id64: 6, name: "Ejemplo Industrial", distance: 11.0, population: 800000, is_colonised: true, bodies: [],
+      stations: [{ name: "Planta Ejemplo", type: "Industrial Outpost", distance_to_arrival: 90, market: [{ commodity: "Steel", supply: 1500, buy_price: 3300 }, { commodity: "Polymers", supply: 3000, buy_price: 640 }, { commodity: "Copper", supply: 800, buy_price: 520 }] }] },
+  ];
+  state.systems = raw.map(normSystem); state.total = raw.length; state.ref = "Ejemplo (datos inventados)"; state.demo = true; state.error = "";
+  renderAll();
+}
+
+/* ---------- render ---------- */
+function renderStatus() {
+  const n = state.systems.length;
+  const free = state.systems.filter((s) => s.isFree).length;
+  const withBodies = state.systems.filter((s) => s.bodies.length).length;
+  let h = "";
+  if (n) {
+    h += `<span><strong>${num(n)}</strong> sistemas cargados cerca de <strong>${esc(state.ref)}</strong></span>`;
+    h += `<span class="pill">${num(free)} sin colonizar</span><span class="pill">${num(withBodies)} con cuerpos conocidos</span>`;
+    if (state.total > n + 1) h += `<span class="pill">Spansh tiene ${num(state.total)} en total: sube las páginas para ver más</span>`;
+    if (state.demo) h += `<span class="pill demo">Datos de ejemplo inventados</span>`;
+  } else if (!state.error) h += `<span>Introduce tu sistema de referencia y pulsa Buscar, o prueba con los datos de ejemplo.</span>`;
+  if (state.error) h += `<span class="err">${esc(state.error)}</span>`;
+  if (state.lastRequest) {
+    h += `<details class="dbg"><summary>Diagnóstico de la última petición</summary><pre>${esc(JSON.stringify({ peticion: state.lastRequest, campos_del_primer_resultado: state.lastKeys }, null, 2))}</pre></details>`;
+  }
+  $("#status").innerHTML = h;
+}
+
+function chips(c) {
+  const t = [];
+  if (c.elw) t.push(`<span class="tag elw">ELW ${c.elw}</span>`);
+  if (c.ww) t.push(`<span class="tag ww">WW ${c.ww}</span>`);
+  if (c.aw) t.push(`<span class="tag aw">AW ${c.aw}</span>`);
+  return t.join("") || '<span class="sub">–</span>';
+}
+
+function sysLinks(s) {
+  const sp = s.id64 && !state.demo ? `<a href="https://spansh.co.uk/system/${esc(s.id64)}" target="_blank" rel="noopener">Spansh</a> · ` : "";
+  return `${sp}<a href="https://inara.cz/elite/starsystem/?search=${encodeURIComponent(s.name)}" target="_blank" rel="noopener">Inara</a>`;
+}
+
+function filteredSystems() {
+  const free = $("#fFree").checked, permit = $("#fPermit").checked, fav = $("#fFav").checked, minB = +$("#fMinBodies").value || 0, sort = $("#fSort").value;
+  let list = state.systems.filter((s) => (!free || s.isFree) && (!permit || !s.permit) && (!fav || state.fav.has(String(s.id64 ?? s.name))) && s.nBodies >= minB);
+  list = list.map((s) => Object.assign(s, { score: score(s) }));
+  list.sort((a, b) => sort === "dist" ? a.dist - b.dist : sort === "bodies" ? b.nBodies - a.nBodies : b.score - a.score || a.dist - b.dist);
+  return list;
+}
+
+function renderSystems() {
+  const list = filteredSystems();
+  if (!list.length) { $("#sysTable").innerHTML = `<div class="empty">${state.systems.length ? "Ningún sistema cumple los filtros." : "Aún no hay datos."}</div>`; return; }
+  const max = Math.max(1, ...list.map((s) => s.score));
+  $("#sysTable").innerHTML = `<table><thead><tr><th></th><th>Sistema</th><th class="num">Ly</th><th class="num">Cuerpos</th><th>Mundos</th><th class="num">Aterriz.</th><th class="num">Anillos</th><th class="num">Bio</th><th class="num">Geo</th><th class="num">Puntos</th><th>Enlaces</th></tr></thead><tbody>` +
+    list.map((s) => {
+      const key = String(s.id64 ?? s.name);
+      const st = s.permit ? '<span class="tag bad">permiso</span>' : "";
+      const status = s.being ? '<span class="tag bad">en colonización</span>' : s.isFree ? "" : '<span class="tag">habitado</span>';
+      return `<tr><td><button class="star ${state.fav.has(key) ? "on" : ""}" data-fav="${esc(key)}" aria-label="Favorito" type="button">${state.fav.has(key) ? "★" : "☆"}</button></td>` +
+        `<td class="name">${esc(s.name)}<div>${st}${status}</div></td><td class="num">${num(s.dist, 1)}</td><td class="num">${num(s.nBodies)}</td><td>${chips(s.c)}</td>` +
+        `<td class="num">${num(s.c.landable)}</td><td class="num">${num(s.c.rings)}</td><td class="num">${num(s.c.bio)}</td><td class="num">${num(s.c.geo)}</td>` +
+        `<td class="num"><span class="score">${num(s.score)}</span><span class="bar" style="width:${Math.round((s.score / max) * 48)}px"></span></td><td>${sysLinks(s)}</td></tr>`;
+    }).join("") + `</tbody></table>`;
+}
+
+function renderBodies() {
+  const kind = $("#bKind").value, ring = $("#bRing").value, minBio = +$("#bBio").value || 0, minGeo = +$("#bGeo").value || 0;
+  const arr = $("#bArr").value === "" ? Infinity : +$("#bArr").value, free = $("#bFree").checked, sort = $("#bSort").value;
+  const rows = [];
+  state.systems.forEach((s) => {
+    if (free && !s.isFree) return;
+    s.bodies.forEach((b) => {
+      if (b.isStar) return;
+      if (kind === "elw" && !b.elw) return; if (kind === "ww" && !b.ww) return; if (kind === "aw" && !b.aw) return;
+      if (kind === "terra" && !b.terraformable) return; if (kind === "gg" && !b.gg) return; if (kind === "landable" && !b.landable) return;
+      if (ring === "any" && !b.rings.length) return;
+      if (ring && ring !== "any" && !b.rings.some((r) => r.type.toLowerCase().includes(ring) && !(ring === "metallic" && /metal rich/i.test(r.type)))) return;
+      if (b.bio < minBio || b.geo < minGeo) return;
+      if (b.arrival !== null && b.arrival > arr) return;
+      if (b.arrival === null && arr !== Infinity) return;
+      rows.push(b);
+    });
+  });
+  rows.sort((a, b) => sort === "arr" ? (a.arrival ?? 1e12) - (b.arrival ?? 1e12) : sort === "bio" ? b.bio - a.bio : sort === "geo" ? b.geo - a.geo : a.sys.dist - b.sys.dist);
+  if (!rows.length) { $("#bodyTable").innerHTML = `<div class="empty">${state.systems.length ? "Ningún cuerpo cumple los filtros." : "Aún no hay datos."}</div>`; return; }
+  const shown = rows.slice(0, 400);
+  $("#bodyTable").innerHTML = `<table><thead><tr><th>Cuerpo</th><th>Tipo</th><th class="num">Ly</th><th class="num">Ls</th><th class="num">g</th><th>Anillos</th><th class="num">Bio</th><th class="num">Geo</th><th>Notas</th></tr></thead><tbody>` +
+    shown.map((b) => {
+      const notes = [b.landable ? "aterrizable" : "", b.terraformable ? "terraformable" : "", b.atmosphere && !/no atmosphere/i.test(b.atmosphere) ? b.atmosphere : ""].filter(Boolean).join(", ");
+      return `<tr><td class="name">${esc(b.name)}<div class="sub">${esc(b.sys.name)}</div></td><td>${esc(b.sub || b.type)}</td><td class="num">${num(b.sys.dist, 1)}</td><td class="num">${b.arrival === null ? "–" : num(b.arrival)}</td>` +
+        `<td class="num">${b.gravity === null ? "–" : num(b.gravity, 2)}</td><td>${esc(b.rings.map((r) => r.type).join(", ") || "–")}</td><td class="num">${num(b.bio)}</td><td class="num">${num(b.geo)}</td><td class="sub">${esc(notes)}</td></tr>`;
+    }).join("") + `</tbody></table>` + (rows.length > shown.length ? `<p class="note" style="padding:8px 12px">Mostrando 400 de ${num(rows.length)}. Afina los filtros.</p>` : "");
+}
+
+function renderLogi() {
+  const lines = $("#shop").value.split(/\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const m = l.match(/^(.*?)[\s,;:]+(\d[\d.,]*)\s*t?$/i);
+    return m ? { name: m[1].trim(), qty: +m[2].replace(/[.,]/g, "") } : { name: l, qty: 0 };
+  });
+  const stations = state.systems.flatMap((s) => s.stations).filter((st) => st.market.length && !/carrier/i.test(st.type));
+  const out = $("#logiOut");
+  if (!state.systems.length) { out.innerHTML = '<div class="empty">Carga una búsqueda primero.</div>'; return; }
+  if (!stations.length) {
+    const seen = state.systems.reduce((a, s) => a + s.stations.length, 0);
+    out.innerHTML = `<div class="empty">Los resultados no traen mercados de estaciones (${num(seen)} estaciones vistas). Puede que Spansh no los incluya en la búsqueda de sistemas; dímelo y lo cambio a una consulta de estaciones.</div>`; return;
+  }
+  out.innerHTML = `<p class="note">${num(stations.length)} estaciones con mercado en el radio de búsqueda.</p>` + lines.map((l) => {
+    const hits = [];
+    stations.forEach((st) => st.market.forEach((m) => { if (m.name.toLowerCase() === l.name.toLowerCase() && m.supply > 0) hits.push({ st, m }); }));
+    hits.sort((a, b) => a.m.buy - b.m.buy);
+    const body = hits.length ? `<div class="tablewrap" style="border:0"><table><thead><tr><th>Estación</th><th class="num">Ly</th><th class="num">Ls</th><th class="num">Stock</th><th class="num">Precio</th></tr></thead><tbody>` +
+      hits.slice(0, 6).map((h) => `<tr><td class="name">${esc(h.st.name)}<div class="sub">${esc(h.st.sys.name)} · ${esc(h.st.type)}</div></td><td class="num">${num(h.st.sys.dist, 1)}</td><td class="num">${h.st.arrival === null ? "–" : num(h.st.arrival)}</td>` +
+        `<td class="num ${l.qty && h.m.supply >= l.qty ? "ok" : "low"}">${num(h.m.supply)}</td><td class="num">${num(h.m.buy)}</td></tr>`).join("") + `</tbody></table></div>`
+      : '<p class="sub">Ninguna estación del radio vende esta mercancía ahora (comprueba el nombre en inglés).</p>';
+    return `<div class="commodity"><h3>${esc(l.name)}${l.qty ? ` <span class="sub">· ${num(l.qty)} t</span>` : ""}</h3>${body}</div>`;
+  }).join("");
+}
+
+function renderAll() { renderStatus(); renderSystems(); renderBodies(); renderLogi(); }
+
+/* ---------- CSV ---------- */
+function exportCsv() {
+  const list = filteredSystems();
+  if (!list.length) return;
+  const cols = ["Sistema", "Ly", "Cuerpos", "ELW", "WW", "AW", "Aterrizables", "Anillos", "Bio", "Geo", "Puntos"];
+  const rows = list.map((s) => [s.name, s.dist.toFixed(2), s.nBodies, s.c.elw, s.c.ww, s.c.aw, s.c.landable, s.c.rings, s.c.bio, s.c.geo, s.score]);
+  const csv = [cols, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
+  a.download = "candidatos-colonizacion.csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------- arranque ---------- */
+const cfg = store.get("cfg", {});
+$("#ref").value = cfg.ref || ""; $("#radius").value = cfg.radius || 15; $("#pages").value = cfg.pages || 3; $("#api").value = cfg.base || defaultApi();
+buildWeights();
+$("#go").addEventListener("click", search);
+$("#ref").addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+$("#demo").addEventListener("click", loadDemo);
+$("#csv").addEventListener("click", exportCsv);
+$("#logiGo").addEventListener("click", renderLogi);
+["fFree", "fPermit", "fFav", "fMinBodies", "fSort"].forEach((id) => $("#" + id).addEventListener("input", renderSystems));
+["bKind", "bRing", "bBio", "bGeo", "bArr", "bFree", "bSort"].forEach((id) => $("#" + id).addEventListener("input", renderBodies));
+$("#sysTable").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-fav]"); if (!b) return;
+  const k = b.dataset.fav; state.fav.has(k) ? state.fav.delete(k) : state.fav.add(k);
+  store.set("fav", [...state.fav]); renderSystems();
+});
+document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach((x) => x.setAttribute("aria-selected", x === t ? "true" : "false"));
+  ["systems", "bodies", "logi"].forEach((n) => { $("#p-" + n).hidden = n !== t.dataset.tab; });
+}));
+$("#themeBtn").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+});
+renderAll();
+</script>
+</body>
+</html>
