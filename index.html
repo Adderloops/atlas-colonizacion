@@ -175,6 +175,7 @@ td.name { white-space: normal; min-width: 170px; }
         <label class="chk"><input type="checkbox" id="fPermit" checked> Sin permiso</label>
         <label class="chk"><input type="checkbox" id="fFav"> Solo favoritos</label>
         <div class="field"><label for="fMinBodies">Cuerpos mín.</label><input id="fMinBodies" type="number" min="0" value="0"></div>
+        <div class="field"><label for="fRocky">Rocosos mín.</label><input id="fRocky" type="number" min="0" value="0"></div>
         <div class="field"><label for="fSort">Ordenar por</label>
           <select id="fSort"><option value="score">Puntuación</option><option value="dist">Distancia</option><option value="bodies">Nº de cuerpos</option></select></div>
         <button class="btn ghost" id="csv" type="button">Exportar CSV</button>
@@ -193,6 +194,7 @@ td.name { white-space: normal; min-width: 170px; }
             <option value="terra">Terraformable</option>
             <option value="gg">Gigante gaseoso</option>
             <option value="landable">Aterrizable</option>
+            <option value="rocky">Cuerpo rocoso</option>
           </select></div>
         <div class="field"><label for="bRing">Anillo</label>
           <select id="bRing"><option value="">Cualquiera</option><option value="any">Con anillos</option><option value="metallic">Metálico</option><option value="metal rich">Rico en metal</option><option value="rocky">Rocoso</option><option value="icy">Helado</option></select></div>
@@ -244,6 +246,7 @@ const WEIGHTS = [
   { k: "aw", label: "Mundo de amoníaco", def: 4 },
   { k: "terra", label: "Terraformable", def: 3 },
   { k: "landable", label: "Cuerpo aterrizable", def: 1 },
+  { k: "rocky", label: "Cuerpo rocoso (minería)", def: 2 },
   { k: "rings", label: "Anillo", def: 2 },
   { k: "gg", label: "Gigante gaseoso", def: 1 },
   { k: "bio", label: "Señal biológica", def: 2 },
@@ -296,6 +299,7 @@ function normBody(b, sys) {
     rings, bio: sig.bio, geo: sig.geo,
     elw: low.includes("earth-like"), ww: low.includes("water world"), aw: low.includes("ammonia world"),
     gg: low.includes("gas giant"),
+    rocky: low.trim() === "rocky body",
   };
 }
 
@@ -327,7 +331,7 @@ function normSystem(s) {
   sys.c = {
     elw: planets.filter((b) => b.elw).length, ww: planets.filter((b) => b.ww).length, aw: planets.filter((b) => b.aw).length,
     terra: planets.filter((b) => b.terraformable).length, landable: planets.filter((b) => b.landable).length,
-    gg: planets.filter((b) => b.gg).length, rings: sys.bodies.reduce((a, b) => a + b.rings.length, 0),
+    gg: planets.filter((b) => b.gg).length, rocky: planets.filter((b) => b.rocky).length, rings: sys.bodies.reduce((a, b) => a + b.rings.length, 0),
     bio: sys.bodies.reduce((a, b) => a + b.bio, 0), geo: sys.bodies.reduce((a, b) => a + b.geo, 0),
   };
   return sys;
@@ -475,8 +479,8 @@ function sysLinks(s) {
 }
 
 function filteredSystems() {
-  const free = $("#fFree").checked, permit = $("#fPermit").checked, fav = $("#fFav").checked, minB = +$("#fMinBodies").value || 0, sort = $("#fSort").value;
-  let list = state.systems.filter((s) => (!free || s.isFree) && (!permit || !s.permit) && (!fav || state.fav.has(String(s.id64 ?? s.name))) && s.nBodies >= minB);
+  const free = $("#fFree").checked, permit = $("#fPermit").checked, fav = $("#fFav").checked, minB = +$("#fMinBodies").value || 0, minR = +$("#fRocky").value || 0, sort = $("#fSort").value;
+  let list = state.systems.filter((s) => (!free || s.isFree) && (!permit || !s.permit) && (!fav || state.fav.has(String(s.id64 ?? s.name))) && s.nBodies >= minB && s.c.rocky >= minR);
   list = list.map((s) => Object.assign(s, { score: score(s) }));
   list.sort((a, b) => sort === "dist" ? a.dist - b.dist : sort === "bodies" ? b.nBodies - a.nBodies : b.score - a.score || a.dist - b.dist);
   return list;
@@ -486,13 +490,13 @@ function renderSystems() {
   const list = filteredSystems();
   if (!list.length) { $("#sysTable").innerHTML = `<div class="empty">${state.systems.length ? "Ningún sistema cumple los filtros." : "Aún no hay datos."}</div>`; return; }
   const max = Math.max(1, ...list.map((s) => s.score));
-  $("#sysTable").innerHTML = `<table><thead><tr><th></th><th>Sistema</th><th class="num">Ly</th><th class="num">Cuerpos</th><th>Mundos</th><th class="num">Aterriz.</th><th class="num">Anillos</th><th class="num">Bio</th><th class="num">Geo</th><th class="num">Puntos</th><th>Enlaces</th></tr></thead><tbody>` +
+  $("#sysTable").innerHTML = `<table><thead><tr><th></th><th>Sistema</th><th class="num">Ly</th><th class="num">Cuerpos</th><th>Mundos</th><th class="num">Rocosos</th><th class="num">Aterriz.</th><th class="num">Anillos</th><th class="num">Bio</th><th class="num">Geo</th><th class="num">Puntos</th><th>Enlaces</th></tr></thead><tbody>` +
     list.map((s) => {
       const key = String(s.id64 ?? s.name);
       const st = s.permit ? '<span class="tag bad">permiso</span>' : "";
       const status = s.being ? '<span class="tag bad">en colonización</span>' : s.isFree ? "" : '<span class="tag">habitado</span>';
       return `<tr><td><button class="star ${state.fav.has(key) ? "on" : ""}" data-fav="${esc(key)}" aria-label="Favorito" type="button">${state.fav.has(key) ? "★" : "☆"}</button></td>` +
-        `<td class="name">${esc(s.name)}<div>${st}${status}</div></td><td class="num">${num(s.dist, 1)}</td><td class="num">${num(s.nBodies)}</td><td>${chips(s.c)}</td>` +
+        `<td class="name">${esc(s.name)}<div>${st}${status}</div></td><td class="num">${num(s.dist, 1)}</td><td class="num">${num(s.nBodies)}</td><td>${chips(s.c)}</td><td class="num">${num(s.c.rocky)}</td>` +
         `<td class="num">${num(s.c.landable)}</td><td class="num">${num(s.c.rings)}</td><td class="num">${num(s.c.bio)}</td><td class="num">${num(s.c.geo)}</td>` +
         `<td class="num"><span class="score">${num(s.score)}</span><span class="bar" style="width:${Math.round((s.score / max) * 48)}px"></span></td><td>${sysLinks(s)}</td></tr>`;
     }).join("") + `</tbody></table>`;
@@ -507,7 +511,7 @@ function renderBodies() {
     s.bodies.forEach((b) => {
       if (b.isStar) return;
       if (kind === "elw" && !b.elw) return; if (kind === "ww" && !b.ww) return; if (kind === "aw" && !b.aw) return;
-      if (kind === "terra" && !b.terraformable) return; if (kind === "gg" && !b.gg) return; if (kind === "landable" && !b.landable) return;
+      if (kind === "terra" && !b.terraformable) return; if (kind === "gg" && !b.gg) return; if (kind === "landable" && !b.landable) return; if (kind === "rocky" && !b.rocky) return;
       if (ring === "any" && !b.rings.length) return;
       if (ring && ring !== "any" && !b.rings.some((r) => r.type.toLowerCase().includes(ring) && !(ring === "metallic" && /metal rich/i.test(r.type)))) return;
       if (b.bio < minBio || b.geo < minGeo) return;
@@ -557,8 +561,8 @@ function renderAll() { $("#enrich").disabled = !state.systems.length || state.de
 function exportCsv() {
   const list = filteredSystems();
   if (!list.length) return;
-  const cols = ["Sistema", "Ly", "Cuerpos", "ELW", "WW", "AW", "Aterrizables", "Anillos", "Bio", "Geo", "Puntos"];
-  const rows = list.map((s) => [s.name, s.dist.toFixed(2), s.nBodies, s.c.elw, s.c.ww, s.c.aw, s.c.landable, s.c.rings, s.c.bio, s.c.geo, s.score]);
+  const cols = ["Sistema", "Ly", "Cuerpos", "ELW", "WW", "AW", "Rocosos", "Aterrizables", "Anillos", "Bio", "Geo", "Puntos"];
+  const rows = list.map((s) => [s.name, s.dist.toFixed(2), s.nBodies, s.c.elw, s.c.ww, s.c.aw, s.c.rocky, s.c.landable, s.c.rings, s.c.bio, s.c.geo, s.score]);
   const csv = [cols, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
@@ -575,7 +579,7 @@ $("#demo").addEventListener("click", loadDemo);
 $("#enrich").addEventListener("click", enrich);
 $("#csv").addEventListener("click", exportCsv);
 $("#logiGo").addEventListener("click", renderLogi);
-["fFree", "fPermit", "fFav", "fMinBodies", "fSort"].forEach((id) => $("#" + id).addEventListener("input", renderSystems));
+["fFree", "fPermit", "fFav", "fMinBodies", "fRocky", "fSort"].forEach((id) => $("#" + id).addEventListener("input", renderSystems));
 ["bKind", "bRing", "bBio", "bGeo", "bArr", "bFree", "bSort"].forEach((id) => $("#" + id).addEventListener("input", renderBodies));
 $("#sysTable").addEventListener("click", (e) => {
   const b = e.target.closest("[data-fav]"); if (!b) return;
