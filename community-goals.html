@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0d1217;--panel:#141b22;--panel-2:#1a232c;--line:#26323d;--fg:#e4e9ee;--muted:#8b9aa8;--accent:#f0a23a;--accent-ink:#1a1203;--good:#4fc6a5;--warn:#e8c24a;--bad:#ef7a6c;
+:root{--bg:#0d1217;--panel:#141b22;--panel-2:#1a232c;--line:#26323d;--fg:#e4e9ee;--muted:#8b9aa8;--accent:#f0a23a;--accent-ink:#1a1203;--good:#4fc6a5;--warn:#e8c24a;--bad:#ef7a6c;--blue:#6fb3ff;
 --font-display:"Rajdhani","Arial Narrow",system-ui,sans-serif;--font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--font-data:"IBM Plex Mono",ui-monospace,Consolas,monospace;color-scheme:dark}
-@media (prefers-color-scheme:light){:root{--bg:#eef1f4;--panel:#fff;--panel-2:#f3f5f8;--line:#d6dde4;--fg:#15202a;--muted:#5c6b79;--accent:#b86a00;--accent-ink:#fff;--good:#0f7f64;--warn:#8c6a00;--bad:#b4372a;color-scheme:light}}
+@media (prefers-color-scheme:light){:root{--bg:#eef1f4;--panel:#fff;--panel-2:#f3f5f8;--line:#d6dde4;--fg:#15202a;--muted:#5c6b79;--accent:#b86a00;--accent-ink:#fff;--good:#0f7f64;--warn:#8c6a00;--bad:#b4372a;--blue:#1d63b0;color-scheme:light}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--font-body)}
 .top{padding:18px 16px 6px;max-width:1280px;margin:0 auto}
@@ -43,6 +43,9 @@ details{margin-top:8px}summary{cursor:pointer;color:var(--muted);font-size:.85re
 pre{white-space:pre-wrap;word-break:break-word;font:.78rem var(--font-data);background:var(--panel-2);padding:10px;border-radius:6px;max-height:260px;overflow:auto}
 .empty{color:var(--muted);padding:10px 0}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:6px}
+.ico{vertical-align:-3px;margin-right:7px}
+.ico.orb{color:var(--accent)}.ico.out{color:var(--muted)}.ico.pla{color:var(--blue)}
+.icoleg{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:6px}.icoleg span{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted)}.icoleg .ico{margin:0}
 .grad{width:120px;height:12px;border-radius:6px;background:linear-gradient(to right,var(--good),var(--warn),var(--bad))}
 </style>
 </head>
@@ -70,6 +73,7 @@ pre{white-space:pre-wrap;word-break:break-word;font:.78rem var(--font-data);back
     </div>
     <p class="status" id="status"></p>
     <div class="legend" style="padding:0"><span class="sub">Escala dentro de cada mercancía:</span><span class="grad"></span><span class="sub">verde = mejor (más barato, más cerca) · rojo = peor · barra de stock más llena = más existencias</span></div>
+    <div class="icoleg" id="icoleg"></div>
     <details><summary>Diagnóstico</summary><pre id="diag">Aún no se ha lanzado ninguna búsqueda.</pre></details>
   </section>
 
@@ -173,6 +177,39 @@ async function search() {
   $("#status").textContent = "Hecho · " + new Date().toLocaleTimeString("es-ES");
   $("#go").disabled = false;
 }
+/* ---- iconos propios por tipo de estación (16×16, trazo) ---- */
+const ICONS = {
+  coriolis: ['Coriolis', 'orb', '<path d="M8 1.5 14 5v6l-6 3.5L2 11V5z"/><path d="M2 5l6 3.5L14 5M8 8.5v6"/>'],
+  orbis: ['Orbis', 'orb', '<circle cx="8" cy="8" r="5"/><ellipse cx="8" cy="8" rx="7" ry="2.2"/>'],
+  ocellus: ['Ocellus', 'orb', '<circle cx="8" cy="8" r="6"/><path d="M8 2v12M2 8h12"/>'],
+  asteroid: ['Base asteroide', 'orb', '<path d="M3 6l3-3.5 5 .5 2.5 4-2 5.5-5.5 1L2.5 10z"/>'],
+  outpost: ['Outpost orbital', 'out', '<path d="M3 13h10M5 13V8h6v5M8 8V3M6.5 3h3"/>'],
+  megaship: ['Megaship', 'orb', '<path d="M1 9l2-3h10l2 3-2 2H3zM6 6V4h4v2"/>'],
+  carrier: ['Fleet Carrier', 'out', '<path d="M1.5 8 4 5h8l2.5 3-2.5 3H4zM8 5V2.5M8 11v2.5"/>'],
+  pport: ['Puerto planetario', 'pla', '<path d="M1.5 13h13M3.5 13a4.5 4.5 0 0 1 9 0M8 8.5V5"/><circle cx="8" cy="4" r="1"/>'],
+  poutpost: ['Outpost planetario', 'pla', '<path d="M1.5 13h13M4 13V9.5h5V13M9 11.5h3"/>'],
+  settlement: ['Asentamiento', 'pla', '<path d="M1.5 13h13M3 13v-3h3v3M7 13V8h3v5M11 13v-2.5h3V13"/>'],
+  unknown: ['Estación', 'out', '<circle cx="8" cy="8" r="4"/>']
+};
+function iconKey(t) {
+  t = t || "";
+  if (/carrier/i.test(t)) return "carrier";
+  if (/mega\s?ship/i.test(t)) return "megaship";
+  if (/ocellus/i.test(t)) return "ocellus";
+  if (/orbis/i.test(t)) return "orbis";
+  if (/coriolis/i.test(t)) return "coriolis";
+  if (/asteroid/i.test(t)) return "asteroid";
+  if (/planetary port|crater port/i.test(t)) return "pport";
+  if (/settlement/i.test(t)) return "settlement";
+  if (/planetary|surface|crater/i.test(t)) return "poutpost";
+  if (/outpost/i.test(t)) return "outpost";
+  return "unknown";
+}
+function icon(type) { return iconSvg(iconKey(type), type); }
+function iconSvg(key, type) {
+  const [label, cat, path] = ICONS[key];
+  return `<svg class="ico ${cat}" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="${esc(type || label)}"><title>${esc(type || label)}</title>${path}</svg>`;
+}
 /* ---- escalas de color: 0 = mejor (verde) -> 1 = peor (rojo) ---- */
 function mkScale(vals) {
   const v = vals.filter((x) => x != null && !isNaN(x)).sort((a, b) => a - b);
@@ -204,18 +241,19 @@ function render(all, o) {
     const rows = [...all[c.name]].sort(sorters[o.order]).slice(0, o.topn);
     return `<section class="card"><h2>${esc(c.es || c.name)} <span class="tag">${all[c.name].length} estaciones</span></h2><div class="tablewrap"><table>
       <thead><tr><th>Estación</th><th>Sistema</th><th class="num">Ly</th><th class="num">Ls</th><th>Pad</th><th class="num">Compra</th><th class="num">Stock</th><th>Datos</th></tr></thead><tbody>` +
-      (rows.length ? rows.map((r) => { const a = ageOf(r.upd); return `<tr><td>${esc(r.name)}</td><td>${esc(r.system)}</td><td class="num" style="${tint(sc.dist.t(r.dist), 22)}">${num(r.dist, 1)}</td><td class="num">${num(r.ls)}</td><td>${r.pad}</td><td class="num" style="${tint(sc.buy.t(r.buy), 40)}">${num(r.buy)}</td><td class="num" style="${stockBar(r.supply, sc)}">${num(r.supply)}</td><td><span class="tag ${a.c}">${a.t}</span></td></tr>`; }).join("")
+      (rows.length ? rows.map((r) => { const a = ageOf(r.upd); return `<tr><td>${icon(r.type)}${esc(r.name)}</td><td>${esc(r.system)}</td><td class="num" style="${tint(sc.dist.t(r.dist), 22)}">${num(r.dist, 1)}</td><td class="num">${num(r.ls)}</td><td>${r.pad}</td><td class="num" style="${tint(sc.buy.t(r.buy), 40)}">${num(r.buy)}</td><td class="num" style="${stockBar(r.supply, sc)}">${num(r.supply)}</td><td><span class="tag ${a.c}">${a.t}</span></td></tr>`; }).join("")
         : '<tr><td colspan="8" class="empty">Sin resultados. Baja el stock mínimo o amplía el radio.</td></tr>') + `</tbody></table></div></section>`;
   }).join("");
   const map = {};
-  goal.commodities.forEach((c) => all[c.name].forEach((r) => { const k = r.name + "|" + r.system; (map[k] = map[k] || { name: r.name, system: r.system, dist: r.dist, pad: r.pad, it: {} }).it[c.name] = r; }));
+  goal.commodities.forEach((c) => all[c.name].forEach((r) => { const k = r.name + "|" + r.system; (map[k] = map[k] || { name: r.name, system: r.system, type: r.type, dist: r.dist, pad: r.pad, it: {} }).it[c.name] = r; }));
   const list = Object.values(map).filter((x) => Object.keys(x.it).length >= 2).sort((a, b) => Object.keys(b.it).length - Object.keys(a.it).length || a.dist - b.dist).slice(0, 15);
   $("#comboCard").hidden = !list.length;
   $("#combo").innerHTML = list.length ? `<table><thead><tr><th>Estación</th><th>Sistema</th><th class="num">Ly</th><th>Pad</th>${goal.commodities.map((c) => `<th class="num">${esc(c.es || c.name)}</th>`).join("")}</tr></thead><tbody>` +
-    list.map((x) => `<tr class="${Object.keys(x.it).length === goal.commodities.length ? "full" : ""}"><td>${esc(x.name)}</td><td>${esc(x.system)}</td><td class="num">${num(x.dist, 1)}</td><td>${x.pad}</td>` +
+    list.map((x) => `<tr class="${Object.keys(x.it).length === goal.commodities.length ? "full" : ""}"><td>${icon(x.type)}${esc(x.name)}</td><td>${esc(x.system)}</td><td class="num">${num(x.dist, 1)}</td><td>${x.pad}</td>` +
       goal.commodities.map((c) => { const r = x.it[c.name]; return r ? `<td class="num" style="${tint(SC[c.name].buy.t(r.buy), 40)}">${num(r.buy)} · ${num(r.supply)}</td>` : '<td class="num">–</td>'; }).join("") + "</tr>").join("") + "</tbody></table>" : "";
 }
 $("#go").addEventListener("click", search);
+$("#icoleg").innerHTML = Object.keys(ICONS).filter((k) => k !== "unknown").map((k) => `<span>${iconSvg(k)}${ICONS[k][0]}</span>`).join("");
 init();
 </script>
 </body>
