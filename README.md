@@ -25,3 +25,11 @@ Spansh no permite peticiones directas desde otros dominios, así que la página 
 4. En la página, en **Conexión → URL base de la API**, escribe esa URL con `/api` al final: `https://atlas-spansh.<tu-subdominio>.workers.dev/api`. Se queda guardada en el navegador.
 
 El worker solo acepta peticiones desde `https://adderloops.github.io` y `http://localhost:8765`, y solo reenvía las rutas de búsqueda de sistemas.
+
+## Community Goals
+
+`community-goals.html` (enlace «Community Goals →» en la cabecera del Atlas) busca dónde comprar las mercancías que pide cada Community Goal, con datos de Spansh: mejores estaciones por precio, distancia o stock, y estaciones que venden varias mercancías del CG a la vez.
+
+Los datos de cada CG viven en `goals.json` (emisor, sistema y estación de entrega, fechas, mercancías con su nombre en inglés tal y como lo usa Spansh, recompensas y el texto original). Para añadir uno nuevo, añade un objeto a `goals` y pon su `id` en `active`. El selector de la página conserva los anteriores.
+
+Si usas el Cloudflare Worker, vuelve a pegar el contenido de `worker.js` (ahora también permite `/api/stations/search`).

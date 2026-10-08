@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas Community Goals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d1217;--panel:#141b22;--panel-2:#1a232c;--line:#26323d;--fg:#e4e9ee;--muted:#8b9aa8;--accent:#f0a23a;--accent-ink:#1a1203;--good:#4fc6a5;--warn:#e8c24a;--bad:#ef7a6c;
+--font-display:"Rajdhani","Arial Narrow",system-ui,sans-serif;--font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--font-data:"IBM Plex Mono",ui-monospace,Consolas,monospace;color-scheme:dark}
+@media (prefers-color-scheme:light){:root{--bg:#eef1f4;--panel:#fff;--panel-2:#f3f5f8;--line:#d6dde4;--fg:#15202a;--muted:#5c6b79;--accent:#b86a00;--accent-ink:#fff;--good:#0f7f64;--warn:#8c6a00;--bad:#b4372a;color-scheme:light}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--font-body)}
+.top{padding:18px 16px 6px;max-width:1280px;margin:0 auto}
+.top h1{font:700 1.7rem var(--font-display);margin:0;letter-spacing:.02em}.top h1 span{color:var(--accent)}
+.top p{margin:4px 0 0;color:var(--muted)} a{color:var(--accent)}
+.wrap{max-width:1280px;margin:0 auto;padding:10px 16px 40px;display:grid;gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+h2{font:600 1.15rem var(--font-display);margin:0 0 8px;color:var(--accent);letter-spacing:.03em}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted)}
+label.chk{flex-direction:row;align-items:center;gap:6px;color:var(--fg);font-size:.9rem}
+input,select{background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:inherit;min-width:110px}
+label.chk input{min-width:0}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:6px;padding:9px 20px;font:600 1rem var(--font-display);letter-spacing:.04em;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:wait}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:.78rem}
+.num{text-align:right;font-family:var(--font-data)}
+.sub{color:var(--muted);font-size:.78rem}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:.74rem;border:1px solid var(--line);color:var(--muted)}
+.tag.good{color:var(--good);border-color:var(--good)}.tag.warn{color:var(--warn);border-color:var(--warn)}
+.full td{background:color-mix(in srgb,var(--good) 10%,transparent)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;margin:6px 0 10px}
+.meta b{color:var(--muted);font-weight:500;font-size:.78rem;display:block}
+.rew{margin:0;padding-left:18px}.rew li{margin:3px 0}
+.status{color:var(--muted)}.err{color:var(--bad)}
+details{margin-top:8px}summary{cursor:pointer;color:var(--muted);font-size:.85rem}
+pre{white-space:pre-wrap;word-break:break-word;font:.78rem var(--font-data);background:var(--panel-2);padding:10px;border-radius:6px;max-height:260px;overflow:auto}
+.empty{color:var(--muted);padding:10px 0}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Atlas <span>Community Goals</span></h1>
+  <p>Dónde comprar lo que pide cada Community Goal. Datos de Spansh. · <a href="index.html">← Atlas de Colonización</a></p>
+</header>
+<div class="wrap">
+  <section class="card" id="goalCard"><div class="empty">Cargando goals.json…</div></section>
+
+  <section class="card">
+    <h2>Búsqueda</h2>
+    <div class="row">
+      <label>Sistema de referencia<input id="ref"></label>
+      <label>Radio (Ly)<input id="radius" type="number" min="1" max="500" value="60"></label>
+      <label>Stock mínimo<input id="minsupply" type="number" min="0" value="2000"></label>
+      <label>Pad mínimo<select id="pad"><option value="">Cualquiera</option><option value="M">M o mayor</option><option value="L" selected>L</option></select></label>
+      <label>Orden<select id="order"><option value="buy">Precio ↑</option><option value="dist">Distancia ↑</option><option value="supply">Stock ↓</option></select></label>
+      <label>Filas por mercancía<input id="topn" type="number" min="3" max="50" value="10"></label>
+      <label class="chk"><input id="nocarrier" type="checkbox" checked> Sin carriers</label>
+      <label class="chk"><input id="noplanet" type="checkbox"> Sin planetarias</label>
+      <label>URL base de la API<input id="api" style="min-width:260px"></label>
+      <button class="btn" id="go" type="button">Buscar</button>
+    </div>
+    <p class="status" id="status"></p>
+    <details><summary>Diagnóstico</summary><pre id="diag">Aún no se ha lanzado ninguna búsqueda.</pre></details>
+  </section>
+
+  <section class="card" id="comboCard" hidden><h2>Estaciones con varias mercancías del CG</h2><div class="tablewrap" id="combo"></div></section>
+  <div id="out" style="display:grid;gap:14px"></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const num = (n, d = 0) => n == null || isNaN(n) ? "–" : Number(n).toLocaleString("es-ES", { maximumFractionDigits: d, minimumFractionDigits: d });
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+function defaultApi() {
+  const local = /^https?:$/.test(location.protocol) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  return local ? "/api" : "https://spansh.co.uk/api";
+}
+let GOALS = null, goal = null;
+
+async function init() {
+  const cfg = store.get("cfg", {});          // misma configuración que el Atlas de Colonización
+  $("#api").value = cfg.base || defaultApi();
+  try {
+    const r = await fetch("goals.json", { cache: "no-store" });
+    GOALS = await r.json();
+  } catch (e) {
+    $("#goalCard").innerHTML = '<div class="err">No se pudo cargar goals.json. Si abres el archivo con doble clic, usa <code>python server.py</code>.</div>'; return;
+  }
+  const saved = store.get("cgActive", null);
+  goal = GOALS.goals.find((g) => g.id === saved) || GOALS.goals.find((g) => g.id === GOALS.active) || GOALS.goals[0];
+  $("#ref").value = store.get("cgRef", goal.system);
+  renderGoal();
+}
+function renderGoal() {
+  const opts = GOALS.goals.map((g) => `<option value="${esc(g.id)}" ${g.id === goal.id ? "selected" : ""}>${esc(g.issuer)} · ${esc(g.title)}${g.id === GOALS.active ? " (activo)" : ""}</option>`).join("");
+  const days = goal.end ? Math.ceil((new Date(goal.end + "T23:59:59") - Date.now()) / 864e5) : null;
+  const left = days === null ? "" : days < 0 ? '<span class="tag">terminado</span>' : `<span class="tag ${days <= 2 ? "warn" : "good"}">quedan ~${days} d</span>`;
+  $("#goalCard").innerHTML = `
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(goal.issuer)} — ${esc(goal.title)} ${left}</h2>
+      <label>Community Goal<select id="goalSel">${opts}</select></label></div>
+    <div class="meta">
+      <div><b>Entrega en</b>${esc(goal.station)}</div><div><b>Sistema</b>${esc(goal.system)}</div>
+      <div><b>Periodo</b>${esc(goal.start || "?")} → ${esc(goal.end || "?")}</div>
+      <div><b>Mercancías</b>${goal.commodities.map((c) => esc(c.es || c.name)).join(" · ")}</div></div>
+    <ul class="rew">${(goal.rewards || []).map((r) => `<li><b>${esc(r.tier)}:</b> ${esc(r.text)}</li>`).join("")}</ul>
+    ${goal.notes ? `<p class="sub">${esc(goal.notes)}${goal.endNote ? " " + esc(goal.endNote) : ""}</p>` : ""}`;
+  $("#goalSel").onchange = (e) => { goal = GOALS.goals.find((g) => g.id === e.target.value); store.set("cgActive", goal.id); $("#ref").value = goal.system; renderGoal(); $("#out").innerHTML = ""; $("#comboCard").hidden = true; };
+}
+
+const isCarrier = (t) => /carrier/i.test(t || "");
+const isPlanet = (t) => /planetary|surface|odyssey|settlement/i.test(t || "");
+function ageOf(ts) {
+  const h = (Date.now() - new Date(String(ts || "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00"))) / 36e5;
+  return isNaN(h) ? { t: "?", c: "" } : { t: h < 1 ? "<1 h" : h < 48 ? Math.round(h) + " h" : Math.round(h / 24) + " d", c: h < 24 ? "good" : h < 96 ? "warn" : "" };
+}
+async function fetchCommodity(base, name, o) {
+  const body = {
+    filters: { market: [{ name, supply: { comparison: "<=>", value: [o.minsupply, 1e9] } }], distance: { min: 0, max: o.radius } },
+    sort: [{ distance: { direction: "asc" } }], size: 200, page: 0, reference_system: o.ref
+  };
+  state.last = { url: base + "/stations/search", body };
+  const r = await fetch(base + "/stations/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error("HTTP " + r.status + " " + (await r.text()).slice(0, 200));
+  const j = await r.json();
+  state.sample = (j.results || [])[0] || null;
+  return (j.results || []).map((s) => {
+    const m = (s.market || []).find((x) => (x.commodity || x.name) === name) || {};
+    const large = s.has_large_pad ?? (s.large_pads > 0), med = s.has_medium_pad ?? (s.medium_pads > 0);
+    return { name: s.name, system: s.system_name, type: s.type || "", dist: s.distance, ls: s.distance_to_arrival,
+      pad: large ? "L" : med ? "M" : "S", buy: m.buy_price ?? m.buy, supply: m.supply, upd: s.market_updated_at };
+  });
+}
+const state = { last: null, sample: null };
+async function search() {
+  const o = { ref: $("#ref").value.trim(), radius: +$("#radius").value || 60, minsupply: +$("#minsupply").value || 0, pad: $("#pad").value,
+    order: $("#order").value, topn: +$("#topn").value || 10, nocarrier: $("#nocarrier").checked, noplanet: $("#noplanet").checked };
+  const base = ($("#api").value.trim() || defaultApi()).replace(/\/+$/, "");
+  if (!o.ref) { $("#status").innerHTML = '<span class="err">Escribe el sistema de referencia.</span>'; return; }
+  store.set("cgRef", o.ref);
+  const cfg = store.get("cfg", {}); cfg.base = base; store.set("cfg", cfg);
+  $("#go").disabled = true; $("#out").innerHTML = ""; $("#comboCard").hidden = true;
+  const all = {};
+  try {
+    for (const c of goal.commodities) {
+      $("#status").textContent = "Consultando " + (c.es || c.name) + "…";
+      let rows = (await fetchCommodity(base, c.name, o)).filter((r) => r.buy > 0 && r.supply >= o.minsupply);
+      if (o.nocarrier) rows = rows.filter((r) => !isCarrier(r.type));
+      if (o.noplanet) rows = rows.filter((r) => !isPlanet(r.type));
+      if (o.pad === "L") rows = rows.filter((r) => r.pad === "L");
+      if (o.pad === "M") rows = rows.filter((r) => r.pad !== "S");
+      all[c.name] = rows;
+    }
+  } catch (e) {
+    $("#status").innerHTML = `<span class="err">Error: ${esc(e.message)}. Si es un bloqueo CORS, usa <code>python server.py</code> o la URL de tu Cloudflare Worker en «URL base de la API».</span>`;
+    $("#diag").textContent = JSON.stringify(state.last, null, 2); $("#go").disabled = false; return;
+  }
+  render(all, o);
+  $("#diag").textContent = "Última petición:\n" + JSON.stringify(state.last, null, 2) + "\n\nPrimer resultado devuelto por Spansh:\n" + JSON.stringify(state.sample, null, 1);
+  $("#status").textContent = "Hecho · " + new Date().toLocaleTimeString("es-ES");
+  $("#go").disabled = false;
+}
+const sorters = { buy: (a, b) => a.buy - b.buy || a.dist - b.dist, dist: (a, b) => a.dist - b.dist, supply: (a, b) => b.supply - a.supply };
+function render(all, o) {
+  $("#out").innerHTML = goal.commodities.map((c) => {
+    const rows = [...all[c.name]].sort(sorters[o.order]).slice(0, o.topn);
+    return `<section class="card"><h2>${esc(c.es || c.name)} <span class="tag">${all[c.name].length} estaciones</span></h2><div class="tablewrap"><table>
+      <thead><tr><th>Estación</th><th>Sistema</th><th class="num">Ly</th><th class="num">Ls</th><th>Pad</th><th class="num">Compra</th><th class="num">Stock</th><th>Datos</th></tr></thead><tbody>` +
+      (rows.length ? rows.map((r) => { const a = ageOf(r.upd); return `<tr><td>${esc(r.name)}</td><td>${esc(r.system)}</td><td class="num">${num(r.dist, 1)}</td><td class="num">${num(r.ls)}</td><td>${r.pad}</td><td class="num">${num(r.buy)}</td><td class="num">${num(r.supply)}</td><td><span class="tag ${a.c}">${a.t}</span></td></tr>`; }).join("")
+        : '<tr><td colspan="8" class="empty">Sin resultados. Baja el stock mínimo o amplía el radio.</td></tr>') + `</tbody></table></div></section>`;
+  }).join("");
+  const map = {};
+  goal.commodities.forEach((c) => all[c.name].forEach((r) => { const k = r.name + "|" + r.system; (map[k] = map[k] || { name: r.name, system: r.system, dist: r.dist, pad: r.pad, it: {} }).it[c.name] = r; }));
+  const list = Object.values(map).filter((x) => Object.keys(x.it).length >= 2).sort((a, b) => Object.keys(b.it).length - Object.keys(a.it).length || a.dist - b.dist).slice(0, 15);
+  $("#comboCard").hidden = !list.length;
+  $("#combo").innerHTML = list.length ? `<table><thead><tr><th>Estación</th><th>Sistema</th><th class="num">Ly</th><th>Pad</th>${goal.commodities.map((c) => `<th class="num">${esc(c.es || c.name)}</th>`).join("")}</tr></thead><tbody>` +
+    list.map((x) => `<tr class="${Object.keys(x.it).length === goal.commodities.length ? "full" : ""}"><td>${esc(x.name)}</td><td>${esc(x.system)}</td><td class="num">${num(x.dist, 1)}</td><td>${x.pad}</td>` +
+      goal.commodities.map((c) => { const r = x.it[c.name]; return `<td class="num">${r ? num(r.buy) + " · " + num(r.supply) : "–"}</td>`; }).join("") + "</tr>").join("") + "</tbody></table>" : "";
+}
+$("#go").addEventListener("click", search);
+init();
+</script>
+</body>
+</html>

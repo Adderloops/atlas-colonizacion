@@ -9,6 +9,7 @@ Uso:  python server.py   ->  abre http://localhost:8765
 import os
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -49,8 +50,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/api/"):
             return self._proxy()
-        with open(os.path.join(HERE, "index.html"), "rb") as f:
-            self._send(200, f.read(), "text/html; charset=utf-8")
+        name = urllib.parse.urlparse(self.path).path.lstrip("/") or "index.html"
+        full = os.path.realpath(os.path.join(HERE, name))
+        if not full.startswith(HERE) or not os.path.isfile(full) or name.endswith(".py"):
+            return self._send(404, b"{}")
+        ctype = {".html": "text/html; charset=utf-8", ".json": "application/json; charset=utf-8"}.get(os.path.splitext(full)[1], "application/octet-stream")
+        with open(full, "rb") as f:
+            self._send(200, f.read(), ctype)
 
     def do_POST(self):
         if self.path.startswith("/api/"):

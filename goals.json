@@ -1,0 +1,28 @@
+{
+  "active": "brewer-jump-satellites-2026-10",
+  "goals": [
+    {
+      "id": "brewer-jump-satellites-2026-10",
+      "title": "Jump satellites",
+      "issuer": "Brewer Corporation",
+      "system": "HIP 74116",
+      "station": "Zero Squared (megaship)",
+      "start": "2026-10-08",
+      "end": "2026-10-15",
+      "endNote": "Dura una semana; termina antes si se alcanza el objetivo final. Fechas aproximadas.",
+      "commodities": [
+        { "name": "Computer Components", "es": "Componentes informáticos" },
+        { "name": "Superconductors", "es": "Superconductores" },
+        { "name": "Semiconductors", "es": "Semiconductores" },
+        { "name": "Power Generators", "es": "Generadores de energía" }
+      ],
+      "rewards": [
+        { "tier": "Top 75 %", "text": "1 × FSD SCO tamaño 4 y 1 × tamaño 5, preingenierizados con Increased Range y Fast Boot Sequence, con experimentales desbloqueados" },
+        { "tier": "Top 50 %", "text": "Además, 1 × FSD SCO tamaño 6 y 1 × tamaño 7 con la misma ingeniería" },
+        { "tier": "Créditos", "text": "Según el nivel de éxito alcanzado y la contribución individual" }
+      ],
+      "notes": "Hay que registrarse primero en la megaship Zero Squared (HIP 74116) y entregar al menos 1 mercancía para optar a las recompensas.",
+      "source": "Brewer Corporation has issued a call for assistance to aid in the manufacturing of what it calls 'jump satellites'. Independent pilots have been asked to supply computer components, superconductors, semiconductors and power generators. Pilots can support this initiative by first signing up at the megaship Zero Squared in the HIP 74116 system, before supplying the required commodities. The campaign will run for one week."
+    }
+  ]
+}

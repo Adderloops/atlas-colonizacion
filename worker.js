@@ -1,11 +1,11 @@
 // Cloudflare Worker: proxy CORS mínimo para la API de Spansh.
 // Solo acepta peticiones desde los orígenes permitidos y solo reenvía
-// las rutas de búsqueda/lectura de sistemas.
+// las rutas de búsqueda de sistemas/estaciones y lectura de sistemas.
 const ALLOWED_ORIGINS = [
   "https://adderloops.github.io",
   "http://localhost:8765",
 ];
-const ALLOWED_PATHS = [/^\/api\/systems\/search$/, /^\/api\/system\/\d+$/];
+const ALLOWED_PATHS = [/^\/api\/systems\/search$/, /^\/api\/stations\/search$/, /^\/api\/system\/\d+$/];
 
 export default {
   async fetch(req) {
