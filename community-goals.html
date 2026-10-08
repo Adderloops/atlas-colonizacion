@@ -105,7 +105,7 @@ async function init() {
 function renderGoal() {
   const opts = GOALS.goals.map((g) => `<option value="${esc(g.id)}" ${g.id === goal.id ? "selected" : ""}>${esc(g.issuer)} · ${esc(g.title)}${g.id === GOALS.active ? " (activo)" : ""}</option>`).join("");
   const days = goal.end ? Math.ceil((new Date(goal.end + "T23:59:59") - Date.now()) / 864e5) : null;
-  const left = days === null ? "" : days < 0 ? '<span class="tag">terminado</span>' : `<span class="tag ${days <= 2 ? "warn" : "good"}">quedan ~${days} d</span>`;
+  const left = days === null ? "" : days < 0 ? '<span class="tag">terminado</span>' : `<span class="tag ${days <= 2 ? "warn" : "good"}">quedan ${days} d (aprox.)</span>`;
   $("#goalCard").innerHTML = `
     <div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(goal.issuer)} — ${esc(goal.title)} ${left}</h2>
       <label>Community Goal<select id="goalSel">${opts}</select></label></div>
