@@ -42,6 +42,8 @@ th{color:var(--muted);font-weight:500;font-size:.78rem}
 details{margin-top:8px}summary{cursor:pointer;color:var(--muted);font-size:.85rem}
 pre{white-space:pre-wrap;word-break:break-word;font:.78rem var(--font-data);background:var(--panel-2);padding:10px;border-radius:6px;max-height:260px;overflow:auto}
 .empty{color:var(--muted);padding:10px 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:6px}
+.grad{width:120px;height:12px;border-radius:6px;background:linear-gradient(to right,var(--good),var(--warn),var(--bad))}
 </style>
 </head>
 <body>
@@ -67,6 +69,7 @@ pre{white-space:pre-wrap;word-break:break-word;font:.78rem var(--font-data);back
       <button class="btn" id="go" type="button">Buscar</button>
     </div>
     <p class="status" id="status"></p>
+    <div class="legend" style="padding:0"><span class="sub">Escala dentro de cada mercancía:</span><span class="grad"></span><span class="sub">verde = mejor (más barato, más cerca) · rojo = peor · barra de stock más llena = más existencias</span></div>
     <details><summary>Diagnóstico</summary><pre id="diag">Aún no se ha lanzado ninguna búsqueda.</pre></details>
   </section>
 
@@ -170,13 +173,38 @@ async function search() {
   $("#status").textContent = "Hecho · " + new Date().toLocaleTimeString("es-ES");
   $("#go").disabled = false;
 }
+/* ---- escalas de color: 0 = mejor (verde) -> 1 = peor (rojo) ---- */
+function mkScale(vals) {
+  const v = vals.filter((x) => x != null && !isNaN(x)).sort((a, b) => a - b);
+  if (!v.length) return { t: () => 0.5, lo: 0, hi: 1 };
+  const lo = v[0], hi = v[Math.min(v.length - 1, Math.floor(v.length * 0.9))] || lo;   // p90 para que un valor extremo no aplaste el resto
+  return { lo, hi, t: (x) => hi === lo ? 0 : Math.min(1, Math.max(0, (x - lo) / (hi - lo))) };
+}
+function heat(t) {
+  return t < 0.5 ? `color-mix(in srgb, var(--warn) ${Math.round(t * 200)}%, var(--good))`
+                 : `color-mix(in srgb, var(--bad) ${Math.round((t - 0.5) * 200)}%, var(--warn))`;
+}
+const tint = (t, a) => `background:color-mix(in srgb, ${heat(t)} ${a}%, transparent)`;
+function stockBar(x, sc) {            // barra con escala logarítmica: más llena = más stock
+  const w = Math.round(100 * Math.log10(Math.max(x, 1)) / Math.log10(Math.max(sc.max, 10)));
+  return `background:linear-gradient(to left, color-mix(in srgb, ${heat(1 - w / 100)} 38%, transparent) ${w}%, transparent ${w}%)`;
+}
+const scalesOf = (rows) => ({ buy: mkScale(rows.map((r) => r.buy)), dist: mkScale(rows.map((r) => r.dist)), max: Math.max(1, ...rows.map((r) => r.supply || 0)) });
 const sorters = { buy: (a, b) => a.buy - b.buy || a.dist - b.dist, dist: (a, b) => a.dist - b.dist, supply: (a, b) => b.supply - a.supply };
+function legend() {
+  return `<div class="card legend"><span class="sub">Escala (dentro de cada mercancía):</span>
+    <span class="grad"></span><span class="sub">verde = mejor (más barato / más cerca) · rojo = peor</span>
+    <span class="sub">· Barra de stock: más llena = más existencias (escala logarítmica)</span></div>`;
+}
 function render(all, o) {
+  const SC = {};
+  goal.commodities.forEach((c) => { SC[c.name] = scalesOf(all[c.name]); });
   $("#out").innerHTML = goal.commodities.map((c) => {
+    const sc = SC[c.name];
     const rows = [...all[c.name]].sort(sorters[o.order]).slice(0, o.topn);
     return `<section class="card"><h2>${esc(c.es || c.name)} <span class="tag">${all[c.name].length} estaciones</span></h2><div class="tablewrap"><table>
       <thead><tr><th>Estación</th><th>Sistema</th><th class="num">Ly</th><th class="num">Ls</th><th>Pad</th><th class="num">Compra</th><th class="num">Stock</th><th>Datos</th></tr></thead><tbody>` +
-      (rows.length ? rows.map((r) => { const a = ageOf(r.upd); return `<tr><td>${esc(r.name)}</td><td>${esc(r.system)}</td><td class="num">${num(r.dist, 1)}</td><td class="num">${num(r.ls)}</td><td>${r.pad}</td><td class="num">${num(r.buy)}</td><td class="num">${num(r.supply)}</td><td><span class="tag ${a.c}">${a.t}</span></td></tr>`; }).join("")
+      (rows.length ? rows.map((r) => { const a = ageOf(r.upd); return `<tr><td>${esc(r.name)}</td><td>${esc(r.system)}</td><td class="num" style="${tint(sc.dist.t(r.dist), 22)}">${num(r.dist, 1)}</td><td class="num">${num(r.ls)}</td><td>${r.pad}</td><td class="num" style="${tint(sc.buy.t(r.buy), 40)}">${num(r.buy)}</td><td class="num" style="${stockBar(r.supply, sc)}">${num(r.supply)}</td><td><span class="tag ${a.c}">${a.t}</span></td></tr>`; }).join("")
         : '<tr><td colspan="8" class="empty">Sin resultados. Baja el stock mínimo o amplía el radio.</td></tr>') + `</tbody></table></div></section>`;
   }).join("");
   const map = {};
@@ -185,7 +213,7 @@ function render(all, o) {
   $("#comboCard").hidden = !list.length;
   $("#combo").innerHTML = list.length ? `<table><thead><tr><th>Estación</th><th>Sistema</th><th class="num">Ly</th><th>Pad</th>${goal.commodities.map((c) => `<th class="num">${esc(c.es || c.name)}</th>`).join("")}</tr></thead><tbody>` +
     list.map((x) => `<tr class="${Object.keys(x.it).length === goal.commodities.length ? "full" : ""}"><td>${esc(x.name)}</td><td>${esc(x.system)}</td><td class="num">${num(x.dist, 1)}</td><td>${x.pad}</td>` +
-      goal.commodities.map((c) => { const r = x.it[c.name]; return `<td class="num">${r ? num(r.buy) + " · " + num(r.supply) : "–"}</td>`; }).join("") + "</tr>").join("") + "</tbody></table>" : "";
+      goal.commodities.map((c) => { const r = x.it[c.name]; return r ? `<td class="num" style="${tint(SC[c.name].buy.t(r.buy), 40)}">${num(r.buy)} · ${num(r.supply)}</td>` : '<td class="num">–</td>'; }).join("") + "</tr>").join("") + "</tbody></table>" : "";
 }
 $("#go").addEventListener("click", search);
 init();
