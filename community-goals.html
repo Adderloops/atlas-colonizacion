@@ -143,9 +143,7 @@ async function fetchCommodity(base, name, o) {
   state.sample = (j.results || [])[0] || null;
   return (j.results || []).map((s) => {
     const m = (s.market || []).find((x) => (x.commodity || x.name) === name) || {};
-    // Regla del juego: outposts (orbitales o planetarios) y asentamientos no tienen pads L
-    const noLarge = /outpost|settlement/i.test(s.type || "") && !/port/i.test(s.type || "");
-    const large = !noLarge && (s.has_large_pad ?? (s.large_pads > 0)), med = s.has_medium_pad ?? (s.medium_pads > 0);
+    const large = s.has_large_pad ?? (s.large_pads > 0), med = s.has_medium_pad ?? (s.medium_pads > 0);
     return { name: s.name, system: s.system_name, type: s.type || "", dist: s.distance, ls: s.distance_to_arrival,
       pad: large ? "L" : med ? "M" : "S", buy: m.buy_price ?? m.buy, supply: m.supply, upd: s.market_updated_at };
   });
