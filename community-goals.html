@@ -64,6 +64,7 @@ pre{white-space:pre-wrap;word-break:break-word;font:.78rem var(--font-data);back
       <label>Radio (Ly)<input id="radius" type="number" min="1" max="500" value="60"></label>
       <label>Stock mínimo<input id="minsupply" type="number" min="0" value="2000"></label>
       <label>Pad mínimo<select id="pad"><option value="">Cualquiera</option><option value="M">M o mayor</option><option value="L" selected>L</option></select></label>
+      <label>Antigüedad máx. datos<select id="maxage"><option value="0">Cualquiera</option><option value="6">6 h</option><option value="24">24 h</option><option value="72" selected>3 días</option><option value="168">7 días</option></select></label>
       <label>Orden<select id="order"><option value="buy">Precio ↑</option><option value="dist">Distancia ↑</option><option value="supply">Stock ↓</option></select></label>
       <label>Filas por mercancía<input id="topn" type="number" min="3" max="50" value="10"></label>
       <label class="chk"><input id="nocarrier" type="checkbox" checked> Sin carriers</label>
@@ -127,6 +128,10 @@ function renderGoal() {
 
 const isCarrier = (t) => /carrier/i.test(t || "");
 const isPlanet = (t) => /planetary|surface|odyssey|settlement/i.test(t || "");
+function ageH(ts) {
+  const h = (Date.now() - new Date(String(ts || "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00"))) / 36e5;
+  return isNaN(h) ? Infinity : h;
+}
 function ageOf(ts) {
   const h = (Date.now() - new Date(String(ts || "").replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00"))) / 36e5;
   return isNaN(h) ? { t: "?", c: "" } : { t: h < 1 ? "<1 h" : h < 48 ? Math.round(h) + " h" : Math.round(h / 24) + " d", c: h < 24 ? "good" : h < 96 ? "warn" : "" };
@@ -148,22 +153,25 @@ async function fetchCommodity(base, name, o) {
       pad: large ? "L" : med ? "M" : "S", buy: m.buy_price ?? m.buy, supply: m.supply, upd: s.market_updated_at };
   });
 }
-const state = { last: null, sample: null };
+const state = { last: null, sample: null, stale: {} };
 async function search() {
   const o = { ref: $("#ref").value.trim(), radius: +$("#radius").value || 60, minsupply: +$("#minsupply").value || 0, pad: $("#pad").value,
-    order: $("#order").value, topn: +$("#topn").value || 10, nocarrier: $("#nocarrier").checked, noplanet: $("#noplanet").checked };
+    order: $("#order").value, maxage: +$("#maxage").value, topn: +$("#topn").value || 10, nocarrier: $("#nocarrier").checked, noplanet: $("#noplanet").checked };
   const base = ($("#api").value.trim() || defaultApi()).replace(/\/+$/, "");
   if (!o.ref) { $("#status").innerHTML = '<span class="err">Escribe el sistema de referencia.</span>'; return; }
   store.set("cgRef", o.ref);
   const cfg = store.get("cfg", {}); cfg.base = base; store.set("cfg", cfg);
   $("#go").disabled = true; $("#out").innerHTML = ""; $("#comboCard").hidden = true;
-  const all = {};
+  const all = {}; state.stale = {};
   try {
     for (const c of goal.commodities) {
       $("#status").textContent = "Consultando " + (c.es || c.name) + "…";
       let rows = (await fetchCommodity(base, c.name, o)).filter((r) => r.buy > 0 && r.supply >= o.minsupply);
       if (o.nocarrier) rows = rows.filter((r) => !isCarrier(r.type));
       if (o.noplanet) rows = rows.filter((r) => !isPlanet(r.type));
+      const before = rows.length;
+      if (o.maxage) rows = rows.filter((r) => ageH(r.upd) <= o.maxage);
+      state.stale[c.name] = before - rows.length;
       if (o.pad === "L") rows = rows.filter((r) => r.pad === "L");
       if (o.pad === "M") rows = rows.filter((r) => r.pad !== "S");
       all[c.name] = rows;
@@ -239,7 +247,7 @@ function render(all, o) {
   $("#out").innerHTML = goal.commodities.map((c) => {
     const sc = SC[c.name];
     const rows = [...all[c.name]].sort(sorters[o.order]).slice(0, o.topn);
-    return `<section class="card"><h2>${esc(c.es || c.name)} <span class="tag">${all[c.name].length} estaciones</span></h2><div class="tablewrap"><table>
+    return `<section class="card"><h2>${esc(c.es || c.name)} <span class="tag">${all[c.name].length} estaciones</span>${state.stale[c.name] ? ` <span class="tag warn" title="Ocultas por superar la antigüedad máxima de datos">${state.stale[c.name]} ocultas por datos antiguos</span>` : ""}</h2><div class="tablewrap"><table>
       <thead><tr><th>Estación</th><th>Sistema</th><th class="num">Ly</th><th class="num">Ls</th><th>Pad</th><th class="num">Compra</th><th class="num">Stock</th><th>Datos</th></tr></thead><tbody>` +
       (rows.length ? rows.map((r) => { const a = ageOf(r.upd); return `<tr><td>${icon(r.type)}${esc(r.name)}</td><td>${esc(r.system)}</td><td class="num" style="${tint(sc.dist.t(r.dist), 22)}">${num(r.dist, 1)}</td><td class="num">${num(r.ls)}</td><td>${r.pad}</td><td class="num" style="${tint(sc.buy.t(r.buy), 40)}">${num(r.buy)}</td><td class="num" style="${stockBar(r.supply, sc)}">${num(r.supply)}</td><td><span class="tag ${a.c}">${a.t}</span></td></tr>`; }).join("")
         : '<tr><td colspan="8" class="empty">Sin resultados. Baja el stock mínimo o amplía el radio.</td></tr>') + `</tbody></table></div></section>`;
